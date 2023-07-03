@@ -12,20 +12,20 @@ COPY ./Cargo.lock ./Cargo.lock
 COPY ./Cargo.toml ./Cargo.toml
 
 # Build only the dependencies to cache them.
-RUN cargo build
+RUN cargo build --release
 
 # Remove any source code that cargo generated.
 RUN rm src/*.rs
 
 # Now that the dependency is built, copy your source code and build for real.
 COPY ./src ./src
-RUN cargo build
+RUN cargo build --release
 
 # Final base image.
 FROM debian:buster-slim
 
 # Copy the build artifact.
-COPY --from=build /photo_manager_server/target/debug/photo_manager_server .
+COPY --from=build /photo_manager_server/target/release/photo_manager_server .
 
 # Set startup command.
 CMD ["./photo_manager_server"]

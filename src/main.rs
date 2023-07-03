@@ -10,7 +10,11 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() {
-    println!("running");
+    if cfg!(debug_assertions) {
+        println!("debug");
+    } else {
+        println!("release");
+    }
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -20,7 +24,10 @@ async fn main() {
         .init();
 
     let app = Router::new()
-        .nest_service("/images", ServeDir::new("images"))
+        .nest_service(
+            "/images",
+            ServeDir::new("/var/lib/photo_manager_server/images"),
+        )
         .layer(middleware::from_fn(print_request_response));
 
     axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
