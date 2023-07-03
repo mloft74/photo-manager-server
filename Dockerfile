@@ -24,6 +24,9 @@ RUN cargo build --release
 # Final base image.
 FROM debian:buster-slim
 
+RUN apt-get update
+RUN apt-get -y install --no-install-recommends libpq-dev
+
 # Copy the build artifact.
 COPY --from=build /photo_manager_server/target/release/photo_manager_server .
 

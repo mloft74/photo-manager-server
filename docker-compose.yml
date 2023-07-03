@@ -1,17 +1,17 @@
 version: '3.8'
 services:
   photo_manager_server:
-    build: ./
+    build: .
     restart: always
     ports:
       - '3000:3000'
     volumes:
-      - /var/lib/photo_manager_server/images:/var/lib/photo_manager_server/images
+      - /var/lib/photo_manager_server:/var/lib/photo_manager_server
   db:
     image: postgres:15.3-alpine3.18
     restart: always
     environment:
-      - POSTGRES_USER=root
+      - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=root
     ports:
       - '5432:5432'
@@ -25,6 +25,10 @@ services:
       PGADMIN_DEFAULT_PASSWORD: root
     ports:
       - "5050:80"
+    volumes:
+      - pgadmin:/var/lib/pgadmin
 volumes:
   db:
+    driver: local
+  pgadmin:
     driver: local
