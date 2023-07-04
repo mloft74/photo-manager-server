@@ -1,3 +1,4 @@
 CREATE TABLE images (
-    path TEXT PRIMARY KEY
+    id SERIAL PRIMARY KEY,
+    file_name TEXT UNIQUE NOT NULL
 );

@@ -3,7 +3,10 @@ use deadpool_diesel::postgres::Pool;
 use diesel::RunQueryDsl;
 use serde::Deserialize;
 
-use crate::{api::error_handling::AppError, database::models::Image, schema};
+use crate::{
+    api::error_handling::AppError, database::models::InsertableImage,
+    /*database::models::Image,*/ schema,
+};
 
 pub fn make_demo_router(pool: &Pool) -> Router {
     Router::new()
@@ -13,7 +16,7 @@ pub fn make_demo_router(pool: &Pool) -> Router {
 
 #[derive(Deserialize)]
 struct NewImage {
-    path: String,
+    file_name: String,
 }
 
 async fn post_image(state: State<Pool>, Json(new_image): Json<NewImage>) -> Result<(), AppError> {
@@ -21,8 +24,8 @@ async fn post_image(state: State<Pool>, Json(new_image): Json<NewImage>) -> Resu
     let rows_affected = connection
         .interact(|conn| {
             diesel::insert_into(schema::images::table)
-                .values(Image {
-                    path: new_image.path,
+                .values(InsertableImage {
+                    file_name: new_image.file_name,
                 })
                 .execute(conn)
         })
