@@ -7,5 +7,5 @@ async fn main() {
         println!("release");
     }
 
-    run().await.unwrap();
+    run().await;
 }

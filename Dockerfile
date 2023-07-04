@@ -19,6 +19,7 @@ RUN rm src/*.rs
 
 # Now that the dependency is built, copy your source code and build for real.
 COPY ./src ./src
+COPY ./migrations ./migrations
 RUN cargo build --release
 
 # Final base image.
@@ -29,6 +30,7 @@ RUN apt-get -y install --no-install-recommends libpq-dev
 
 # Copy the build artifact.
 COPY --from=build /photo_manager_server/target/release/photo_manager_server .
+COPY ./.env ./.env
 
 # Set startup command.
 CMD ["./photo_manager_server"]
