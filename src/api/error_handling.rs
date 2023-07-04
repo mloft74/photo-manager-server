@@ -9,7 +9,7 @@ use hyper::StatusCode;
 use serde_json::json;
 
 #[derive(Debug)]
-pub struct AppError(pub StatusCode, Box<dyn std::error::Error>);
+pub struct AppError(pub StatusCode, pub Box<dyn std::error::Error>);
 
 impl Display for AppError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
