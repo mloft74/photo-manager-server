@@ -23,7 +23,7 @@ COPY ./migrations ./migrations
 RUN cargo build --release
 
 # Final base image.
-FROM debian:buster-slim
+FROM debian:trixie-slim
 
 RUN apt-get update
 RUN apt-get -y install --no-install-recommends libpq-dev
