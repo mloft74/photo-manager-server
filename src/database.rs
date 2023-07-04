@@ -3,6 +3,7 @@ use std::env;
 use deadpool_diesel::postgres::{Manager, Pool, Runtime};
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 
+pub mod image_manager;
 pub mod models;
 
 // This embeddes the migrations into the application binary.
@@ -20,7 +21,7 @@ pub fn make_connection_pool() -> Pool {
 
 pub async fn run_migrations(pool: &Pool) {
     // Lot's of unwraps here since there are nested results and whatnot.
-
+    // rust-analyzer is having trouble with types here, so I'm just going to keep it as unwrap.
     let conn = pool.get().await.unwrap();
     conn.interact(|conn| conn.run_pending_migrations(MIGRATIONS).map(|_| ()))
         .await

@@ -41,6 +41,12 @@ impl From<diesel::result::Error> for AppError {
     }
 }
 
+impl From<Box<dyn std::error::Error>> for AppError {
+    fn from(value: Box<dyn std::error::Error>) -> Self {
+        Self(StatusCode::INTERNAL_SERVER_ERROR, value)
+    }
+}
+
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let AppError(status, error_message) = self;
