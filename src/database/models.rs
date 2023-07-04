@@ -1,6 +1,6 @@
-use crate::schema;
-
 use diesel::{pg::Pg, Insertable, Queryable, Selectable};
+
+use crate::schema;
 
 #[derive(Queryable, Selectable, Insertable)]
 #[diesel(table_name = schema::images)]

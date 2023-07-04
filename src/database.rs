@@ -1,9 +1,9 @@
-pub mod models;
-
 use std::env;
 
 use deadpool_diesel::postgres::{Manager, Pool, Runtime};
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+
+pub mod models;
 
 // This embeddes the migrations into the application binary.
 // The migration path is relative to the `CARGO_MANIFEST_DIR`.

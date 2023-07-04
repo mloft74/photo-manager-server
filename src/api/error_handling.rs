@@ -1,48 +1,15 @@
 use std::fmt::Display;
 
 use axum::{
-    extract::State,
     response::{IntoResponse, Response},
-    routing::post,
-    Json, Router,
+    Json,
 };
-use deadpool_diesel::{postgres::Pool, InteractError, PoolError};
-use diesel::RunQueryDsl;
+use deadpool_diesel::{InteractError, PoolError};
 use hyper::StatusCode;
-use serde::Deserialize;
 use serde_json::json;
 
-use crate::{database::models::Image, schema};
-
-pub fn make_demo_router(pool: &Pool) -> Router {
-    Router::new()
-        .route("/add_image", post(post_image))
-        .with_state(pool.clone())
-}
-
-#[derive(Deserialize)]
-struct NewImage {
-    path: String,
-}
-
-async fn post_image(state: State<Pool>, Json(new_image): Json<NewImage>) -> Result<(), AppError> {
-    let connection = state.get().await?;
-    let rows_affected = connection
-        .interact(|conn| {
-            diesel::insert_into(schema::images::table)
-                .values(Image {
-                    path: new_image.path,
-                })
-                .execute(conn)
-        })
-        .await??;
-    tracing::debug!("post_image affected {} rows", rows_affected);
-
-    Ok(())
-}
-
 #[derive(Debug)]
-struct AppError(pub StatusCode, Box<dyn std::error::Error>);
+pub struct AppError(pub StatusCode, Box<dyn std::error::Error>);
 
 impl Display for AppError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
