@@ -4,7 +4,6 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use deadpool_diesel::{InteractError, PoolError};
 use hyper::StatusCode;
 use serde_json::json;
 
@@ -22,24 +21,6 @@ impl Display for AppError {
 }
 
 impl std::error::Error for AppError {}
-
-impl From<PoolError> for AppError {
-    fn from(value: PoolError) -> Self {
-        Self(StatusCode::INTERNAL_SERVER_ERROR, Box::new(value))
-    }
-}
-
-impl From<InteractError> for AppError {
-    fn from(value: InteractError) -> Self {
-        Self(StatusCode::INTERNAL_SERVER_ERROR, Box::new(value))
-    }
-}
-
-impl From<diesel::result::Error> for AppError {
-    fn from(value: diesel::result::Error) -> Self {
-        Self(StatusCode::INTERNAL_SERVER_ERROR, Box::new(value))
-    }
-}
 
 impl From<Box<dyn std::error::Error>> for AppError {
     fn from(value: Box<dyn std::error::Error>) -> Self {

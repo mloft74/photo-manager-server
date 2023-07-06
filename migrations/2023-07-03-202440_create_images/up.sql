@@ -1,4 +1,0 @@
-CREATE TABLE images (
-    id SERIAL PRIMARY KEY,
-    file_name TEXT UNIQUE NOT NULL
-);
