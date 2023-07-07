@@ -5,6 +5,7 @@ use sea_orm_migration::prelude::*;
 
 use crate::database::migrator::Migrator;
 
+mod entities;
 pub mod image_manager;
 mod migrator;
 pub mod models;
