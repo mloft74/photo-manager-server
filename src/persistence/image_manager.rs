@@ -1,7 +1,8 @@
+use async_trait::async_trait;
 use sea_orm::{DatabaseConnection, EntityTrait};
 
 use crate::{
-    domain::models::Image,
+    domain::{actions::images::ImageSaver, models::Image},
     persistence::entities::{images, prelude::Images},
 };
 
@@ -19,8 +20,11 @@ impl ImageManager {
     pub async fn get_image() -> Result<Image, Box<dyn std::error::Error>> {
         todo!()
     }
+}
 
-    pub async fn save_image(&self, image: &Image) -> Result<(), Box<dyn std::error::Error>> {
+#[async_trait]
+impl ImageSaver for ImageManager {
+    async fn save_image(&self, image: &Image) -> Result<(), Box<dyn std::error::Error>> {
         let model = images::ActiveModel {
             file_name: sea_orm::ActiveValue::Set(image.file_name.clone()),
             ..Default::default()

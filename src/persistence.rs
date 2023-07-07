@@ -3,13 +3,16 @@ use std::env;
 use sea_orm::{Database, DatabaseConnection, DbErr};
 use sea_orm_migration::prelude::*;
 
-use crate::persistence::{image_manager::ImageManager, migrator::Migrator};
+use crate::{
+    domain::actions::images::ImageSaver,
+    persistence::{image_manager::ImageManager, migrator::Migrator},
+};
 
 mod entities;
 pub mod image_manager;
 mod migrator;
 
-pub async fn init_persistence() -> Result<ImageManager, Box<dyn std::error::Error>> {
+pub async fn init_persistence() -> Result<impl ImageSaver, Box<dyn std::error::Error>> {
     let db_conn = connect().await?;
     Ok(ImageManager::new(db_conn))
 }
