@@ -1,8 +1,12 @@
 use std::env;
 
 use sea_orm::{Database, DbErr};
+use sea_orm_migration::prelude::*;
+
+use crate::database::migrator::Migrator;
 
 pub mod image_manager;
+mod migrator;
 pub mod models;
 
 pub async fn connect() -> Result<(), DbErr> {
@@ -10,6 +14,8 @@ pub async fn connect() -> Result<(), DbErr> {
     let db_name = env::var("DATABASE_NAME").expect("DATABASE_NAME must be set");
     let conn_url = format!("{}/{}", db_url, db_name);
     let db = Database::connect(conn_url).await?;
+
+    Migrator::up(&db, None).await?;
 
     Ok(())
 }
