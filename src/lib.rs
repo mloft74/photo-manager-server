@@ -7,6 +7,8 @@ mod database;
 mod domain;
 mod server_tracing;
 
+pub use database::connect;
+
 pub async fn run() {
     dotenv().expect("Could not load .env");
 
