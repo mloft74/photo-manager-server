@@ -1,16 +1,19 @@
 use axum::{middleware, Router};
 
-use crate::domain::actions::images::ImageSaver;
+use crate::domain::actions::images::{ImageGetter, ImageSaver};
 
 mod demo_routing;
 mod error_handling;
 mod image_server;
 mod request_tracing;
 
-pub fn make_api_router<T: ImageSaver + 'static>(image_manager: T) -> Router {
+pub fn make_api_router<TSaver: ImageSaver + 'static, TGetter: ImageGetter + 'static>(
+    image_saver: TSaver,
+    image_getter: TGetter,
+) -> Router {
     let image_router = image_server::create_image_server_router();
 
-    let demo_router = demo_routing::make_demo_router(image_manager);
+    let demo_router = demo_routing::make_demo_router(image_saver, image_getter);
 
     Router::new()
         .merge(image_router)

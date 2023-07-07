@@ -17,7 +17,10 @@ pub async fn run() {
 
     server_tracing::init_tracing_subscriber();
 
-    let api_router = api::make_api_router(action_provider.get_image_saver());
+    let api_router = api::make_api_router(
+        action_provider.get_image_saver(),
+        action_provider.get_image_getter(),
+    );
 
     axum::Server::bind(&"0.0.0.0:3000".parse().expect("Couldn't parse server url"))
         .serve(api_router.into_make_service())

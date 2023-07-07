@@ -22,16 +22,17 @@ impl ImageManager {
 
 #[async_trait]
 impl ImageGetter for ImageManager {
-    async fn get_image(&self, file_name: &str) -> Result<Image, Box<dyn std::error::Error>> {
-        let model = Images::find()
+    async fn get_image(
+        &self,
+        file_name: &str,
+    ) -> Result<Option<Image>, Box<dyn std::error::Error>> {
+        Ok(Images::find()
             .filter(images::Column::FileName.eq(file_name))
             .one(&self.db_conn)
             .await?
-            .ok_or_else(|| format!("Could not find image with file name {}", file_name))?;
-
-        Ok(Image {
-            file_name: model.file_name,
-        })
+            .map(|m| Image {
+                file_name: m.file_name,
+            }))
     }
 }
 

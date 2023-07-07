@@ -1,15 +1,28 @@
-use axum::{extract::State, routing::post, Json, Router};
-use serde::Deserialize;
+use axum::{
+    extract::{Query, State},
+    routing::{get, post},
+    Json, Router,
+};
+use hyper::StatusCode;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     api::error_handling::AppError,
-    domain::{actions::images::ImageSaver, models::Image},
+    domain::{
+        actions::images::{ImageGetter, ImageSaver},
+        models::Image,
+    },
 };
 
-pub fn make_demo_router<T: ImageSaver + 'static>(image_manager: T) -> Router {
+pub fn make_demo_router<TSaver: ImageSaver + 'static, TGetter: ImageGetter + 'static>(
+    image_saver: TSaver,
+    image_getter: TGetter,
+) -> Router {
     Router::new()
-        .route("/add_image", post(post_image::<T>))
-        .with_state(image_manager)
+        .route("/add_image", post(post_image::<TSaver>))
+        .with_state(image_saver)
+        .route("/get_image", get(get_image::<TGetter>))
+        .with_state(image_getter)
 }
 
 #[derive(Deserialize)]
@@ -26,4 +39,31 @@ async fn post_image<T: ImageSaver>(
             file_name: new_image.file_name,
         })
         .await?)
+}
+
+#[derive(Deserialize)]
+struct FindImage {
+    file_name: String,
+}
+
+#[derive(Serialize)]
+struct ImageResponse {
+    file_name: String,
+}
+
+async fn get_image<T: ImageGetter>(
+    state: State<T>,
+    Query(find_image): Query<FindImage>,
+) -> Result<Json<ImageResponse>, AppError> {
+    let file_name = &find_image.file_name;
+    let image = state.get_image(file_name).await?.ok_or_else(|| {
+        AppError(
+            StatusCode::NOT_FOUND,
+            format!("Could not find image with file name {}", file_name).into(),
+        )
+    })?;
+
+    Ok(Json(ImageResponse {
+        file_name: image.file_name,
+    }))
 }
