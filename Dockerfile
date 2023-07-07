@@ -29,6 +29,7 @@ RUN apt-get -y install --no-install-recommends libpq-dev
 
 # Copy the build artifact.
 COPY --from=build /photo_manager_server/target/release/photo_manager_server .
+COPY ./.env ./.env
 
 # Set startup command.
 CMD ["./photo_manager_server"]

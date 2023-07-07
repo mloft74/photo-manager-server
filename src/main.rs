@@ -1,4 +1,4 @@
-use photo_manager_server::connect;
+use photo_manager_server::run;
 
 #[tokio::main]
 async fn main() {
@@ -8,9 +8,5 @@ async fn main() {
         println!("release");
     }
 
-    let res = connect().await;
-
-    println!("{:?}", res);
-
-    // run().await;
+    run().await;
 }
