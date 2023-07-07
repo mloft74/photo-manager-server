@@ -9,19 +9,29 @@ use serde::{Deserialize, Serialize};
 use crate::{
     api::error_handling::AppError,
     domain::{
-        actions::images::{ImageGetter, ImageSaver},
+        actions::{
+            images::{ImageGetter, ImageSaver},
+            ActionProvider,
+        },
         models::Image,
     },
 };
 
-pub fn make_demo_router<TSaver: ImageSaver + 'static, TGetter: ImageGetter + 'static>(
-    image_saver: TSaver,
-    image_getter: TGetter,
-) -> Router {
+pub fn make_demo_router(action_provider: &(impl ActionProvider + 'static)) -> Router {
     Router::new()
-        .route("/add_image", post(post_image::<TSaver>))
+        .merge(make_add_image_router(action_provider.get_image_saver()))
+        .merge(make_get_image_router(action_provider.get_image_getter()))
+}
+
+fn make_add_image_router<T: ImageSaver + 'static>(image_saver: T) -> Router {
+    Router::new()
+        .route("/add_image", post(post_image::<T>))
         .with_state(image_saver)
-        .route("/get_image", get(get_image::<TGetter>))
+}
+
+fn make_get_image_router<T: ImageGetter + 'static>(image_getter: T) -> Router {
+    Router::new()
+        .route("/get_image", get(get_image::<T>))
         .with_state(image_getter)
 }
 
