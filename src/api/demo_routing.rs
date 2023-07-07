@@ -2,7 +2,7 @@ use axum::{extract::State, routing::post, Json, Router};
 use serde::Deserialize;
 
 use crate::{
-    api::error_handling::AppError, database::image_manager::ImageManager, domain::models::Image,
+    api::error_handling::AppError, domain::models::Image, persistence::image_manager::ImageManager,
 };
 
 pub fn make_demo_router(image_manager: ImageManager) -> Router {

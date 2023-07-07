@@ -1,6 +1,6 @@
 use axum::{middleware, Router};
 
-use crate::database::image_manager::ImageManager;
+use crate::persistence::image_manager::ImageManager;
 
 mod demo_routing;
 mod error_handling;

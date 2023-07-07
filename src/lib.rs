@@ -1,16 +1,17 @@
 use dotenvy::dotenv;
 
-use crate::database::image_manager::ImageManager;
+use crate::persistence::image_manager::ImageManager;
 
 mod api;
-mod database;
 mod domain;
+mod persistence;
+
 mod server_tracing;
 
 pub async fn run() {
     dotenv().expect("Could not load .env");
 
-    database::connect()
+    persistence::connect()
         .await
         .expect("Could not connect to DBMS");
 

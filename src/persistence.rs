@@ -3,12 +3,11 @@ use std::env;
 use sea_orm::{Database, DbErr};
 use sea_orm_migration::prelude::*;
 
-use crate::database::migrator::Migrator;
+use crate::persistence::migrator::Migrator;
 
 mod entities;
 pub mod image_manager;
 mod migrator;
-pub mod models;
 
 pub async fn connect() -> Result<(), DbErr> {
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
