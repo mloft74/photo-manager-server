@@ -9,6 +9,8 @@ pub struct Model {
     pub id: i32,
     #[sea_orm(unique)]
     pub file_name: String,
+    pub width: i32,
+    pub height: i32,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

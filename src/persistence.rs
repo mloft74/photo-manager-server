@@ -9,9 +9,9 @@ use crate::{
 };
 
 mod entities;
-pub mod image_manager;
+mod image_manager;
 mod migrator;
-pub mod persistence_manager;
+mod persistence_manager;
 
 pub async fn init_persistence() -> Result<impl RepoProvider, Box<dyn std::error::Error>> {
     let db_conn = connect().await?;

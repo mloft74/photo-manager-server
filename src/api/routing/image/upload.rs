@@ -102,7 +102,7 @@ async fn upload_image_inner<T: ImageRepo>(
 
     tracing::debug!("image dimensions: {} x {}", image_width, image_height);
 
-    repo.save_image(&Image {
+    repo.save_image(Image {
         file_name,
         width: image_width,
         height: image_height,
