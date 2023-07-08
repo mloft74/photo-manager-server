@@ -7,12 +7,10 @@ use hyper::{
     Body, Request, StatusCode, Uri,
 };
 
-use crate::api::error_handling::AppError;
-
 pub async fn print_request_response(
     req: Request<Body>,
     next: Next<Body>,
-) -> Result<impl IntoResponse, AppError> {
+) -> Result<impl IntoResponse, (StatusCode, String)> {
     let (parts, body) = req.into_parts();
     let uri = parts.uri.clone();
     let bytes = buffer_and_print_request(&uri, body).await?;
@@ -27,7 +25,7 @@ pub async fn print_request_response(
     Ok(res)
 }
 
-async fn buffer_and_print_request<B>(uri: &Uri, body: B) -> Result<Bytes, AppError>
+async fn buffer_and_print_request<B>(uri: &Uri, body: B) -> Result<Bytes, (StatusCode, String)>
 where
     B: HttpBody<Data = Bytes>,
     B::Error: std::fmt::Display,
@@ -35,9 +33,9 @@ where
     let bytes = match body::to_bytes(body).await {
         Ok(bytes) => bytes,
         Err(err) => {
-            return Err(AppError(
+            return Err((
                 StatusCode::BAD_REQUEST,
-                format!("failed to read {} request body: {}", uri, err).into(),
+                format!("failed to read {} request body: {}", uri, err),
             ));
         }
     };
@@ -53,7 +51,7 @@ async fn buffer_and_print_response<B>(
     status_code: &StatusCode,
     uri: &Uri,
     body: B,
-) -> Result<Bytes, AppError>
+) -> Result<Bytes, (StatusCode, String)>
 where
     B: HttpBody<Data = Bytes>,
     B::Error: std::fmt::Display,
@@ -61,9 +59,9 @@ where
     let bytes = match body::to_bytes(body).await {
         Ok(bytes) => bytes,
         Err(err) => {
-            return Err(AppError(
+            return Err((
                 StatusCode::BAD_REQUEST,
-                format!("failed to read {} response body: {}", uri, err).into(),
+                format!("failed to read {} response body: {}", uri, err),
             ));
         }
     };

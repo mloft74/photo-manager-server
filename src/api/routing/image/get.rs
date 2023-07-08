@@ -6,7 +6,7 @@ use axum::{
 use hyper::StatusCode;
 use serde::{Deserialize, Serialize};
 
-use crate::{api::error_handling::AppError, domain::actions::images::ImageGetter};
+use crate::domain::actions::images::ImageGetter;
 
 pub fn make_get_router<T: ImageGetter + 'static>(image_getter: T) -> Router {
     Router::new()
@@ -27,14 +27,18 @@ struct ImageResponse {
 async fn get_image<T: ImageGetter>(
     state: State<T>,
     Query(find_image): Query<FindImage>,
-) -> Result<Json<ImageResponse>, AppError> {
+) -> Result<Json<ImageResponse>, (StatusCode, String)> {
     let file_name = &find_image.file_name;
-    let image = state.get_image(file_name).await?.ok_or_else(|| {
-        AppError(
-            StatusCode::NOT_FOUND,
-            format!("Could not find image with file name {}", file_name).into(),
-        )
-    })?;
+    let image = state
+        .get_image(file_name)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .ok_or_else(|| {
+            (
+                StatusCode::NOT_FOUND,
+                format!("Could not find image with file name {}", file_name),
+            )
+        })?;
 
     Ok(Json(ImageResponse {
         file_name: image.file_name,

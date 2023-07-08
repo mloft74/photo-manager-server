@@ -3,7 +3,6 @@ use tower_http::trace::TraceLayer;
 
 use crate::domain::actions::ActionProvider;
 
-mod error_handling;
 mod image_server;
 mod request_tracing;
 mod routing;
