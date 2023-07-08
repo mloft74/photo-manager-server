@@ -1,4 +1,4 @@
-use std::{f32::consts::E, io};
+use std::io;
 
 use axum::{
     extract::{
@@ -74,7 +74,6 @@ async fn upload_image_inner<T: ImageRepo>(
         )
     })?;
 
-    // TODO(mloft74): Validate that there are no other fields.
     let existing_image = repo.get_image(&file_name).await.map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
