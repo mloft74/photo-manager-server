@@ -1,7 +1,10 @@
-use std::io;
+use std::{f32::consts::E, io};
 
 use axum::{
-    extract::{DefaultBodyLimit, Multipart, State},
+    extract::{
+        multipart::{Field, MultipartError},
+        DefaultBodyLimit, Multipart, State,
+    },
     routing::post,
     BoxError, Router,
 };
@@ -29,14 +32,20 @@ pub fn make_upload_router<T: ImageRepo + 'static>(image_repo: T) -> Router {
 }
 
 #[derive(Serialize)]
+struct UploadImageErrorWrapper<'a> {
+    error: &'a UploadImageError,
+}
+
+#[derive(Serialize)]
 enum UploadImageError {
-    FileNameNotPresent,
+    FileFieldErr(FileFieldValidationError),
+    ImageAlreadyExists,
     GeneralError(String),
 }
 
 impl UploadImageError {
     fn to_json_string(&self) -> String {
-        serde_json::to_string(self).unwrap_or_else(|e| {
+        serde_json::to_string(&UploadImageErrorWrapper { error: self }).unwrap_or_else(|e| {
             json!({
                 "error": "jsonConverionFailed",
                 "message": e.to_string(),
@@ -58,32 +67,30 @@ async fn upload_image_inner<T: ImageRepo>(
     repo: State<T>,
     mut multipart: Multipart,
 ) -> Result<(), (StatusCode, String)> {
-    let mut outer_file_name = None;
-    let mut count = 0;
-    while let Ok(Some(field)) = multipart.next_field().await {
-        tracing::debug!("iteration: {}", count);
-        count += 1;
-        let file_name = if let Some(file_name) = field.file_name() {
-            file_name.to_owned()
-        } else {
-            continue;
-        };
-
-        stream_to_file(&file_name, field)
-            .await
-            .map_err(|(s, e)| (s, e.to_json_string()))?;
-        if outer_file_name.is_some() {
-            continue;
-        }
-        outer_file_name = Some(file_name)
-    }
-
-    let file_name = outer_file_name.ok_or_else(|| {
+    let (file_name, file_field) = validate_field(multipart.next_field().await).map_err(|e| {
         (
             StatusCode::BAD_REQUEST,
-            UploadImageError::FileNameNotPresent.to_json_string(),
+            UploadImageError::FileFieldErr(e).to_json_string(),
         )
     })?;
+
+    // TODO(mloft74): Validate that there are no other fields.
+    let existing_image = repo.get_image(&file_name).await.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            UploadImageError::GeneralError(e.to_string()).to_json_string(),
+        )
+    })?;
+    if existing_image.is_some() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            UploadImageError::ImageAlreadyExists.to_json_string(),
+        ));
+    }
+
+    stream_to_file(&file_name, file_field)
+        .await
+        .map_err(|(s, e)| (s, e.to_json_string()))?;
 
     repo.save_image(&Image { file_name }).await.map_err(|e| {
         (
@@ -145,4 +152,35 @@ fn path_is_valid(path: &str) -> bool {
     }
 
     components.count() == 1
+}
+
+#[derive(Serialize)]
+enum FileFieldValidationError {
+    FieldErr(String),
+    MissingField,
+    MissingFieldName,
+    MissingFileName,
+    WrongFieldName { expected: String, actual: String },
+}
+
+fn validate_field(
+    field_res: Result<Option<Field>, MultipartError>,
+) -> Result<(String, Field), FileFieldValidationError> {
+    let field = field_res.map_err(|e| FileFieldValidationError::FieldErr(e.to_string()))?;
+    let field = field.ok_or(FileFieldValidationError::MissingField)?;
+    let field_name = field
+        .name()
+        .ok_or(FileFieldValidationError::MissingFieldName)?;
+    let file_name = field
+        .file_name()
+        .ok_or(FileFieldValidationError::MissingFileName)?;
+    let expected_name = "";
+    if field_name == expected_name {
+        Ok((file_name.to_string(), field))
+    } else {
+        Err(FileFieldValidationError::WrongFieldName {
+            expected: expected_name.to_string(),
+            actual: field_name.to_string(),
+        })
+    }
 }
