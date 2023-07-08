@@ -1,6 +1,6 @@
 use sea_orm::DatabaseConnection;
 
-use crate::{domain::actions::ActionProvider, persistence::image_manager::ImageManager};
+use crate::{domain::repos::RepoProvider, persistence::image_manager::ImageManager};
 
 pub struct PersistenceManager {
     db_conn: DatabaseConnection,
@@ -16,14 +16,9 @@ impl PersistenceManager {
     }
 }
 
-impl ActionProvider for PersistenceManager {
-    type ImageGetterImpl = ImageManager;
-    fn get_image_getter(&self) -> Self::ImageGetterImpl {
-        self.new_image_manager()
-    }
-
-    type ImageSaverImpl = ImageManager;
-    fn get_image_saver(&self) -> Self::ImageSaverImpl {
+impl RepoProvider for PersistenceManager {
+    type ImageRepoImpl = ImageManager;
+    fn get_image_repo(&self) -> Self::ImageRepoImpl {
         self.new_image_manager()
     }
 }

@@ -4,7 +4,7 @@ use sea_orm::{Database, DatabaseConnection, DbErr};
 use sea_orm_migration::prelude::*;
 
 use crate::{
-    domain::actions::ActionProvider,
+    domain::repos::RepoProvider,
     persistence::{migrator::Migrator, persistence_manager::PersistenceManager},
 };
 
@@ -13,7 +13,7 @@ pub mod image_manager;
 mod migrator;
 pub mod persistence_manager;
 
-pub async fn init_persistence() -> Result<impl ActionProvider, Box<dyn std::error::Error>> {
+pub async fn init_persistence() -> Result<impl RepoProvider, Box<dyn std::error::Error>> {
     let db_conn = connect().await?;
     Ok(PersistenceManager::new(db_conn))
 }

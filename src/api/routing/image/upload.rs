@@ -15,17 +15,17 @@ use tower_http::limit::RequestBodyLimitLayer;
 
 use crate::{
     api::IMAGES_DIR,
-    domain::{actions::images::ImageSaver, models::Image},
+    domain::{models::Image, repos::images::ImageRepo},
 };
 
-pub fn make_upload_router<T: ImageSaver + 'static>(image_saver: T) -> Router {
+pub fn make_upload_router<T: ImageRepo + 'static>(image_repo: T) -> Router {
     Router::new()
         .route("/upload", post(upload_image::<T>))
         .layer(DefaultBodyLimit::disable())
         .layer(RequestBodyLimitLayer::new(
             250 * 1024 * 1024, /* 250mb */
         ))
-        .with_state(image_saver)
+        .with_state(image_repo)
 }
 
 #[derive(Serialize)]
@@ -47,8 +47,15 @@ impl UploadImageError {
 }
 
 // Handler that accepts a multipart form upload and streams each field to a file.
-async fn upload_image<T: ImageSaver>(
-    saver: State<T>,
+async fn upload_image<T: ImageRepo>(
+    repo: State<T>,
+    multipart: Multipart,
+) -> Result<(), (StatusCode, String)> {
+    upload_image_inner(repo, multipart).await
+}
+
+async fn upload_image_inner<T: ImageRepo>(
+    repo: State<T>,
     mut multipart: Multipart,
 ) -> Result<(), (StatusCode, String)> {
     let mut outer_file_name = None;
@@ -78,7 +85,7 @@ async fn upload_image<T: ImageSaver>(
         )
     })?;
 
-    saver.save_image(&Image { file_name }).await.map_err(|e| {
+    repo.save_image(&Image { file_name }).await.map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             UploadImageError::GeneralError(e.to_string()).to_json_string(),

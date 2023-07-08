@@ -1,7 +1,7 @@
 use axum::{middleware, Router};
 use tower_http::trace::TraceLayer;
 
-use crate::domain::actions::ActionProvider;
+use crate::domain::repos::RepoProvider;
 
 mod image_server;
 mod request_tracing;
@@ -9,7 +9,7 @@ mod routing;
 
 const IMAGES_DIR: &str = "/var/lib/photo_manager_server/images";
 
-pub fn make_api_router(action_provider: &(impl ActionProvider + 'static)) -> Router {
+pub fn make_api_router(action_provider: &(impl RepoProvider + 'static)) -> Router {
     let image_server_router = image_server::create_image_server_router();
 
     let demo_router = routing::make_api_router(action_provider);

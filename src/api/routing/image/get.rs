@@ -6,9 +6,9 @@ use axum::{
 use hyper::StatusCode;
 use serde::{Deserialize, Serialize};
 
-use crate::domain::actions::images::ImageGetter;
+use crate::domain::repos::images::ImageRepo;
 
-pub fn make_get_router<T: ImageGetter + 'static>(image_getter: T) -> Router {
+pub fn make_get_router<T: ImageRepo + 'static>(image_getter: T) -> Router {
     Router::new()
         .route("/get", get(get_image::<T>))
         .with_state(image_getter)
@@ -24,7 +24,7 @@ struct ImageResponse {
     file_name: String,
 }
 
-async fn get_image<T: ImageGetter>(
+async fn get_image<T: ImageRepo>(
     state: State<T>,
     Query(find_image): Query<FindImage>,
 ) -> Result<Json<ImageResponse>, (StatusCode, String)> {
