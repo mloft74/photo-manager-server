@@ -29,6 +29,8 @@ impl ImageRepo for ImageManager {
             .await?
             .map(|m| Image {
                 file_name: m.file_name,
+                width: 0,
+                height: 0,
             }))
     }
 

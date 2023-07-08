@@ -10,6 +10,7 @@ use axum::{
 };
 use futures::{Stream, TryStreamExt};
 use hyper::{body::Bytes, StatusCode};
+use image::io::Reader as ImageReader;
 use serde::Serialize;
 use serde_json::json;
 use tokio::{fs::File, io::BufWriter};
@@ -40,6 +41,7 @@ struct UploadImageErrorWrapper<'a> {
 enum UploadImageError {
     FileFieldErr(FileFieldValidationError),
     ImageAlreadyExists,
+    FailedToFetchDimensions(GetImageDimensionsError),
     GeneralError(String),
 }
 
@@ -91,7 +93,22 @@ async fn upload_image_inner<T: ImageRepo>(
         .await
         .map_err(|(s, e)| (s, e.to_json_string()))?;
 
-    repo.save_image(&Image { file_name }).await.map_err(|e| {
+    let (image_width, image_height) = get_image_dimensions(&file_name).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            UploadImageError::FailedToFetchDimensions(e).to_json_string(),
+        )
+    })?;
+
+    tracing::debug!("image dimensions: {} x {}", image_width, image_height);
+
+    repo.save_image(&Image {
+        file_name,
+        width: image_width,
+        height: image_height,
+    })
+    .await
+    .map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             UploadImageError::GeneralError(e.to_string()).to_json_string(),
@@ -102,18 +119,14 @@ async fn upload_image_inner<T: ImageRepo>(
 }
 
 // Save a `Stream` to a file
-async fn stream_to_file<S, E>(path: &str, stream: S) -> Result<(), (StatusCode, UploadImageError)>
+async fn stream_to_file<S, E>(
+    file_name: &str,
+    stream: S,
+) -> Result<(), (StatusCode, UploadImageError)>
 where
     S: Stream<Item = Result<Bytes, E>>,
     E: Into<BoxError>,
 {
-    if !path_is_valid(path) {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            UploadImageError::GeneralError("Invalid path".to_string()),
-        ));
-    }
-
     async {
         // Convert the stream into an `AsyncRead`.
         let body_with_io_error = stream.map_err(|err| io::Error::new(io::ErrorKind::Other, err));
@@ -121,7 +134,7 @@ where
         futures::pin_mut!(body_reader);
 
         // Create the file. `File` implements `AsyncWrite`.
-        let path = std::path::Path::new(IMAGES_DIR).join(path);
+        let path = std::path::Path::new(IMAGES_DIR).join(file_name);
         let mut file = BufWriter::new(File::create(path).await?);
 
         // Copy the body into the file.
@@ -159,6 +172,7 @@ enum FileFieldValidationError {
     MissingField,
     MissingFieldName,
     MissingFileName,
+    InvalidFileName,
     WrongFieldName { expected: String, actual: String },
 }
 
@@ -173,13 +187,35 @@ fn validate_field(
     let file_name = field
         .file_name()
         .ok_or(FileFieldValidationError::MissingFileName)?;
+
+    if !path_is_valid(file_name) {
+        return Err(FileFieldValidationError::InvalidFileName);
+    }
+
     let expected_name = "";
-    if field_name == expected_name {
-        Ok((file_name.to_string(), field))
-    } else {
-        Err(FileFieldValidationError::WrongFieldName {
+    if field_name != expected_name {
+        return Err(FileFieldValidationError::WrongFieldName {
             expected: expected_name.to_string(),
             actual: field_name.to_string(),
-        })
+        });
     }
+
+    Ok((file_name.to_string(), field))
+}
+
+#[derive(Serialize)]
+enum GetImageDimensionsError {
+    ErrorOpeningImage(String),
+    FailedToGetDimensions(String),
+}
+
+fn get_image_dimensions(file_name: &str) -> Result<(u32, u32), GetImageDimensionsError> {
+    let path = std::path::Path::new(IMAGES_DIR).join(file_name);
+    let image = ImageReader::open(path)
+        .map_err(|e| GetImageDimensionsError::ErrorOpeningImage(e.to_string()))?;
+    let dim = image
+        .into_dimensions()
+        .map_err(|e| GetImageDimensionsError::FailedToGetDimensions(e.to_string()))?;
+
+    Ok(dim)
 }
