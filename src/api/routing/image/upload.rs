@@ -119,7 +119,7 @@ async fn upload_image_inner<TGetter: ImageGetter, TSaver: ImageSaver>(
 
     state
         .saver
-        .save_image(Image {
+        .save_image(&Image {
             file_name,
             width: image_width,
             height: image_height,

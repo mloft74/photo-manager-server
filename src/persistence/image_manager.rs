@@ -25,17 +25,6 @@ impl ImageManager {
     }
 }
 
-impl From<Image> for images::ActiveModel {
-    fn from(value: Image) -> Self {
-        Self {
-            file_name: ActiveValue::Set(value.file_name),
-            width: ActiveValue::Set(value.width as i32),
-            height: ActiveValue::Set(value.height as i32),
-            ..Default::default()
-        }
-    }
-}
-
 impl From<images::Model> for Image {
     fn from(value: images::Model) -> Self {
         Self {
@@ -62,8 +51,8 @@ impl ImageGetter for ImageManager {
 
 #[async_trait]
 impl ImageSaver for ImageManager {
-    async fn save_image(&self, image: Image) -> Result<(), Box<dyn std::error::Error>> {
-        let model: images::ActiveModel = image.into();
+    async fn save_image(&self, image: &Image) -> Result<(), Box<dyn std::error::Error>> {
+        let model: images::ActiveModel = active_model_for_insert_from(image);
         Images::insert(model).exec(&self.db_conn).await?;
 
         Ok(())
@@ -72,7 +61,7 @@ impl ImageSaver for ImageManager {
 
 #[async_trait]
 impl ImageCanonSaver for ImageManager {
-    async fn save_canon<T: Iterator<Item = Image> + Send>(
+    async fn save_canon<'a, T: Iterator<Item = &'a Image> + Send>(
         &self,
         canon: T,
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -106,7 +95,7 @@ impl ImageCanonSaver for ImageManager {
                     });
                 }
             } else {
-                inserts.push(image.into());
+                inserts.push(active_model_for_insert_from(image));
             }
         }
 
@@ -134,6 +123,15 @@ impl ImageCanonSaver for ImageManager {
             .await?;
 
         Ok(())
+    }
+}
+
+fn active_model_for_insert_from(image: &Image) -> images::ActiveModel {
+    images::ActiveModel {
+        file_name: ActiveValue::Set(image.file_name.clone()),
+        width: ActiveValue::Set(image.width as i32),
+        height: ActiveValue::Set(image.height as i32),
+        ..Default::default()
     }
 }
 
