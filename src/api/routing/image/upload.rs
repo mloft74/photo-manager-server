@@ -19,17 +19,32 @@ use tower_http::limit::RequestBodyLimitLayer;
 
 use crate::{
     api::IMAGES_DIR,
-    domain::{models::Image, repos::images::ImageRepo},
+    domain::{
+        actions::images::{ImageGetter, ImageSaver},
+        models::Image,
+    },
 };
 
-pub fn make_upload_router<T: ImageRepo + 'static>(image_repo: T) -> Router {
+pub fn make_upload_router<TGetter: ImageGetter + 'static, TSaver: ImageSaver + 'static>(
+    image_getter: TGetter,
+    image_saver: TSaver,
+) -> Router {
     Router::new()
-        .route("/upload", post(upload_image::<T>))
+        .route("/upload", post(upload_image))
         .layer(DefaultBodyLimit::disable())
         .layer(RequestBodyLimitLayer::new(
             250 * 1024 * 1024, /* 250mb */
         ))
-        .with_state(image_repo)
+        .with_state(UploadState {
+            getter: image_getter,
+            saver: image_saver,
+        })
+}
+
+#[derive(Clone)]
+struct UploadState<TGetter: ImageGetter, TSaver: ImageSaver> {
+    getter: TGetter,
+    saver: TSaver,
 }
 
 #[derive(Serialize)]
@@ -58,15 +73,15 @@ impl UploadImageError {
 }
 
 // Handler that accepts a multipart form upload and streams each field to a file.
-async fn upload_image<T: ImageRepo>(
-    repo: State<T>,
+async fn upload_image<TGetter: ImageGetter, TSaver: ImageSaver>(
+    state: State<UploadState<TGetter, TSaver>>,
     multipart: Multipart,
 ) -> Result<(), (StatusCode, String)> {
-    upload_image_inner(repo, multipart).await
+    upload_image_inner(state, multipart).await
 }
 
-async fn upload_image_inner<T: ImageRepo>(
-    repo: State<T>,
+async fn upload_image_inner<TGetter: ImageGetter, TSaver: ImageSaver>(
+    state: State<UploadState<TGetter, TSaver>>,
     mut multipart: Multipart,
 ) -> Result<(), (StatusCode, String)> {
     let (file_name, file_field) = validate_field(multipart.next_field().await).map_err(|e| {
@@ -76,7 +91,7 @@ async fn upload_image_inner<T: ImageRepo>(
         )
     })?;
 
-    let existing_image = repo.get_image(&file_name).await.map_err(|e| {
+    let existing_image = state.getter.get_image(&file_name).await.map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             UploadImageError::GeneralError(e.to_string()).to_json_string(),
@@ -102,18 +117,20 @@ async fn upload_image_inner<T: ImageRepo>(
 
     tracing::debug!("image dimensions: {} x {}", image_width, image_height);
 
-    repo.save_image(Image {
-        file_name,
-        width: image_width,
-        height: image_height,
-    })
-    .await
-    .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            UploadImageError::GeneralError(e.to_string()).to_json_string(),
-        )
-    })?;
+    state
+        .saver
+        .save_image(Image {
+            file_name,
+            width: image_width,
+            height: image_height,
+        })
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                UploadImageError::GeneralError(e.to_string()).to_json_string(),
+            )
+        })?;
 
     Ok(())
 }

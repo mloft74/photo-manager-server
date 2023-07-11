@@ -2,7 +2,10 @@ use async_trait::async_trait;
 use sea_orm::{ActiveValue, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 
 use crate::{
-    domain::{models::Image, repos::images::ImageRepo},
+    domain::{
+        actions::images::{ImageGetter, ImageSaver},
+        models::Image,
+    },
     persistence::entities::{images, prelude::Images},
 };
 
@@ -39,7 +42,7 @@ impl From<images::Model> for Image {
 }
 
 #[async_trait]
-impl ImageRepo for ImageManager {
+impl ImageGetter for ImageManager {
     async fn get_image(
         &self,
         file_name: &str,
@@ -50,7 +53,10 @@ impl ImageRepo for ImageManager {
             .await?
             .map(|m| m.into()))
     }
+}
 
+#[async_trait]
+impl ImageSaver for ImageManager {
     async fn save_image(&self, image: Image) -> Result<(), Box<dyn std::error::Error>> {
         let model: images::ActiveModel = image.into();
         Images::insert(model).exec(&self.db_conn).await?;
