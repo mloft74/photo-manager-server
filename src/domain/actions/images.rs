@@ -14,8 +14,8 @@ pub trait ImageSaver: Clone + Send + Sync {
 }
 
 #[async_trait]
-pub trait ImageCanonSaver: Clone + Send + Sync {
-    async fn save_canon<'a, T: Iterator<Item = &'a Image> + Send>(
+pub trait ImageCanonUpdater: Clone + Send + Sync {
+    async fn update_canon<'a, T: Iterator<Item = &'a Image> + Send>(
         &self,
         canon: T,
     ) -> Result<(), Box<dyn std::error::Error>>;

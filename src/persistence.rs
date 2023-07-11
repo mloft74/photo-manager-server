@@ -8,8 +8,8 @@ use crate::{
     persistence::{migrator::Migrator, persistence_manager::PersistenceManager},
 };
 
+mod db_image;
 mod entities;
-mod image_manager;
 mod migrator;
 mod persistence_manager;
 

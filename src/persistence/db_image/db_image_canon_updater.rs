@@ -7,61 +7,27 @@ use sea_orm::{
 };
 
 use crate::{
-    domain::{
-        actions::images::{ImageCanonSaver, ImageGetter, ImageSaver},
-        models::Image,
+    domain::{actions::images::ImageCanonUpdater, models::Image},
+    persistence::{
+        db_image::active_model_for_insert_from,
+        entities::{images, prelude::Images},
     },
-    persistence::entities::{images, prelude::Images},
 };
 
 #[derive(Clone)]
-pub struct ImageManager {
+pub struct DbImageCanonUpdater {
     db_conn: DatabaseConnection,
 }
 
-impl ImageManager {
+impl DbImageCanonUpdater {
     pub fn new(db_conn: DatabaseConnection) -> Self {
         Self { db_conn }
     }
 }
 
-impl From<images::Model> for Image {
-    fn from(value: images::Model) -> Self {
-        Self {
-            file_name: value.file_name,
-            width: value.width as u32,
-            height: value.height as u32,
-        }
-    }
-}
-
 #[async_trait]
-impl ImageGetter for ImageManager {
-    async fn get_image(
-        &self,
-        file_name: &str,
-    ) -> Result<Option<Image>, Box<dyn std::error::Error>> {
-        Ok(Images::find()
-            .filter(images::Column::FileName.eq(file_name))
-            .one(&self.db_conn)
-            .await?
-            .map(|m| m.into()))
-    }
-}
-
-#[async_trait]
-impl ImageSaver for ImageManager {
-    async fn save_image(&self, image: &Image) -> Result<(), Box<dyn std::error::Error>> {
-        let model: images::ActiveModel = active_model_for_insert_from(image);
-        Images::insert(model).exec(&self.db_conn).await?;
-
-        Ok(())
-    }
-}
-
-#[async_trait]
-impl ImageCanonSaver for ImageManager {
-    async fn save_canon<'a, T: Iterator<Item = &'a Image> + Send>(
+impl ImageCanonUpdater for DbImageCanonUpdater {
+    async fn update_canon<'a, T: Iterator<Item = &'a Image> + Send>(
         &self,
         canon: T,
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -123,15 +89,6 @@ impl ImageCanonSaver for ImageManager {
             .await?;
 
         Ok(())
-    }
-}
-
-fn active_model_for_insert_from(image: &Image) -> images::ActiveModel {
-    images::ActiveModel {
-        file_name: ActiveValue::Set(image.file_name.clone()),
-        width: ActiveValue::Set(image.width as i32),
-        height: ActiveValue::Set(image.height as i32),
-        ..Default::default()
     }
 }
 
