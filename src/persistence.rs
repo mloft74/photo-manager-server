@@ -20,9 +20,7 @@ pub async fn init_persistence() -> Result<impl ActionProvider, Box<dyn std::erro
 
 async fn connect() -> Result<DatabaseConnection, DbErr> {
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let db_name = env::var("DATABASE_NAME").expect("DATABASE_NAME must be set");
-    let conn_url = format!("{}/{}", db_url, db_name);
-    let db_conn = Database::connect(conn_url).await?;
+    let db_conn = Database::connect(db_url).await?;
 
     Migrator::up(&db_conn, None).await?;
 
