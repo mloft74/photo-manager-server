@@ -16,6 +16,11 @@ pub trait ImageSaver: Clone + Send + Sync {
 }
 
 #[async_trait]
+pub trait ImageCanonFetcher: Clone + Send + Sync {
+    async fn fetch_canon(&self) -> Result<Vec<Image>, Box<dyn std::error::Error>>;
+}
+
+#[async_trait]
 pub trait ImageCanonUpdater: Clone + Send + Sync {
     async fn update_canon<'a, T: Iterator<Item = &'a Image> + Send>(
         &self,

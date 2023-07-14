@@ -17,16 +17,6 @@ impl DbImageFetcher {
     }
 }
 
-impl From<images::Model> for Image {
-    fn from(value: images::Model) -> Self {
-        Self {
-            file_name: value.file_name,
-            width: value.width as u32,
-            height: value.height as u32,
-        }
-    }
-}
-
 #[async_trait]
 impl ImageFetcher for DbImageFetcher {
     async fn fetch_image(

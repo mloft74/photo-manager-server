@@ -3,8 +3,8 @@ use sea_orm::DatabaseConnection;
 use crate::{
     domain::actions::ActionProvider,
     persistence::db_image::{
-        db_image_canon_updater::DbImageCanonUpdater, db_image_fetcher::DbImageFetcher,
-        db_image_saver::DbImageSaver,
+        db_image_canon_fetcher::DbImageCanonFetcher, db_image_canon_updater::DbImageCanonUpdater,
+        db_image_fetcher::DbImageFetcher, db_image_saver::DbImageSaver,
     },
 };
 
@@ -27,6 +27,11 @@ impl ActionProvider for PersistenceManager {
     type ImageSaverImpl = DbImageSaver;
     fn get_image_saver(&self) -> Self::ImageSaverImpl {
         Self::ImageSaverImpl::new(self.db_conn.clone())
+    }
+
+    type ImageCanonFetcherImpl = DbImageCanonFetcher;
+    fn get_image_canon_fetcher(&self) -> Self::ImageCanonFetcherImpl {
+        Self::ImageCanonFetcherImpl::new(self.db_conn.clone())
     }
 
     type ImageCanonUpdaterImpl = DbImageCanonUpdater;
