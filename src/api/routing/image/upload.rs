@@ -17,7 +17,10 @@ use tokio_util::io::StreamReader;
 use tower_http::limit::RequestBodyLimitLayer;
 
 use crate::{
-    api::{self, FetchImageDimensionsError, IMAGES_DIR},
+    api::{
+        image_dimensions::{self, FetchImageDimensionsError},
+        IMAGES_DIR,
+    },
     domain::{
         actions::images::{ImageGetter, ImageSaver},
         models::Image,
@@ -107,12 +110,13 @@ async fn upload_image_inner<TGetter: ImageGetter, TSaver: ImageSaver>(
         .await
         .map_err(|(s, e)| (s, e.to_json_string()))?;
 
-    let (image_width, image_height) = api::fetch_image_dimensions(&file_name).map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            UploadImageError::FailedToFetchDimensions(e).to_json_string(),
-        )
-    })?;
+    let (image_width, image_height) = image_dimensions::fetch_image_dimensions(&file_name)
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                UploadImageError::FailedToFetchDimensions(e).to_json_string(),
+            )
+        })?;
 
     tracing::debug!("image dimensions: {} x {}", image_width, image_height);
 
