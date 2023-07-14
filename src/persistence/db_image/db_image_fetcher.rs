@@ -2,16 +2,16 @@ use async_trait::async_trait;
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 
 use crate::{
-    domain::{actions::images::ImageGetter, models::Image},
+    domain::{actions::images::ImageFetcher, models::Image},
     persistence::entities::{images, prelude::Images},
 };
 
 #[derive(Clone)]
-pub struct DbImageGetter {
+pub struct DbImageFetcher {
     db_conn: DatabaseConnection,
 }
 
-impl DbImageGetter {
+impl DbImageFetcher {
     pub fn new(db_conn: DatabaseConnection) -> Self {
         Self { db_conn }
     }
@@ -28,8 +28,8 @@ impl From<images::Model> for Image {
 }
 
 #[async_trait]
-impl ImageGetter for DbImageGetter {
-    async fn get_image(
+impl ImageFetcher for DbImageFetcher {
+    async fn fetch_image(
         &self,
         file_name: &str,
     ) -> Result<Option<Image>, Box<dyn std::error::Error>> {

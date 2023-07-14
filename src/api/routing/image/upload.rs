@@ -22,13 +22,13 @@ use crate::{
         IMAGES_DIR,
     },
     domain::{
-        actions::images::{ImageGetter, ImageSaver},
+        actions::images::{ImageFetcher, ImageSaver},
         models::Image,
     },
 };
 
-pub fn make_upload_router<TGetter: ImageGetter + 'static, TSaver: ImageSaver + 'static>(
-    image_getter: TGetter,
+pub fn make_upload_router<TFetcher: ImageFetcher + 'static, TSaver: ImageSaver + 'static>(
+    image_fetcher: TFetcher,
     image_saver: TSaver,
 ) -> Router {
     Router::new()
@@ -38,14 +38,14 @@ pub fn make_upload_router<TGetter: ImageGetter + 'static, TSaver: ImageSaver + '
             250 * 1024 * 1024, /* 250mb */
         ))
         .with_state(UploadState {
-            getter: image_getter,
+            fetcher: image_fetcher,
             saver: image_saver,
         })
 }
 
 #[derive(Clone)]
-struct UploadState<TGetter: ImageGetter, TSaver: ImageSaver> {
-    getter: TGetter,
+struct UploadState<TFetcher: ImageFetcher, TSaver: ImageSaver> {
+    fetcher: TFetcher,
     saver: TSaver,
 }
 
@@ -75,15 +75,15 @@ impl UploadImageError {
 }
 
 // Handler that accepts a multipart form upload and streams each field to a file.
-async fn upload_image<TGetter: ImageGetter, TSaver: ImageSaver>(
-    state: State<UploadState<TGetter, TSaver>>,
+async fn upload_image<TFetcher: ImageFetcher, TSaver: ImageSaver>(
+    state: State<UploadState<TFetcher, TSaver>>,
     multipart: Multipart,
 ) -> Result<(), (StatusCode, String)> {
     upload_image_inner(state, multipart).await
 }
 
-async fn upload_image_inner<TGetter: ImageGetter, TSaver: ImageSaver>(
-    state: State<UploadState<TGetter, TSaver>>,
+async fn upload_image_inner<TFetcher: ImageFetcher, TSaver: ImageSaver>(
+    state: State<UploadState<TFetcher, TSaver>>,
     mut multipart: Multipart,
 ) -> Result<(), (StatusCode, String)> {
     let (file_name, file_field) = validate_field(multipart.next_field().await).map_err(|e| {
@@ -93,7 +93,7 @@ async fn upload_image_inner<TGetter: ImageGetter, TSaver: ImageSaver>(
         )
     })?;
 
-    let existing_image = state.getter.get_image(&file_name).await.map_err(|e| {
+    let existing_image = state.fetcher.fetch_image(&file_name).await.map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             UploadImageError::GeneralError(e.to_string()).to_json_string(),

@@ -3,7 +3,7 @@ use sea_orm::ActiveValue;
 use crate::{domain::models::Image, persistence::entities::images};
 
 pub mod db_image_canon_updater;
-pub mod db_image_getter;
+pub mod db_image_fetcher;
 pub mod db_image_saver;
 
 fn active_model_for_insert_from(image: &Image) -> images::ActiveModel {

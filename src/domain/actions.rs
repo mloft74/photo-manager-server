@@ -1,10 +1,10 @@
-use crate::domain::actions::images::{ImageCanonUpdater, ImageGetter, ImageSaver};
+use crate::domain::actions::images::{ImageCanonUpdater, ImageFetcher, ImageSaver};
 
 pub mod images;
 
 pub trait ActionProvider {
-    type ImageGetterImpl: ImageGetter + Clone + Send + Sync;
-    fn get_image_getter(&self) -> Self::ImageGetterImpl;
+    type ImageFetcherImpl: ImageFetcher + Clone + Send + Sync;
+    fn get_image_fetcher(&self) -> Self::ImageFetcherImpl;
 
     type ImageSaverImpl: ImageSaver + Clone + Send + Sync;
     fn get_image_saver(&self) -> Self::ImageSaverImpl;

@@ -3,9 +3,11 @@ use async_trait::async_trait;
 use crate::domain::models::Image;
 
 #[async_trait]
-pub trait ImageGetter: Clone + Send + Sync {
-    async fn get_image(&self, file_name: &str)
-        -> Result<Option<Image>, Box<dyn std::error::Error>>;
+pub trait ImageFetcher: Clone + Send + Sync {
+    async fn fetch_image(
+        &self,
+        file_name: &str,
+    ) -> Result<Option<Image>, Box<dyn std::error::Error>>;
 }
 
 #[async_trait]
