@@ -17,7 +17,7 @@ use tokio_util::io::StreamReader;
 use tower_http::limit::RequestBodyLimitLayer;
 
 use crate::{
-    api::{self, GetImageDimensionsError, IMAGES_DIR},
+    api::{self, FetchImageDimensionsError, IMAGES_DIR},
     domain::{
         actions::images::{ImageGetter, ImageSaver},
         models::Image,
@@ -55,7 +55,7 @@ struct UploadImageErrorWrapper<'a> {
 enum UploadImageError {
     FileFieldErr(FileFieldValidationError),
     ImageAlreadyExists,
-    FailedToFetchDimensions(GetImageDimensionsError),
+    FailedToFetchDimensions(FetchImageDimensionsError),
     GeneralError(String),
 }
 
@@ -107,7 +107,7 @@ async fn upload_image_inner<TGetter: ImageGetter, TSaver: ImageSaver>(
         .await
         .map_err(|(s, e)| (s, e.to_json_string()))?;
 
-    let (image_width, image_height) = api::get_image_dimensions(&file_name).map_err(|e| {
+    let (image_width, image_height) = api::fetch_image_dimensions(&file_name).map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             UploadImageError::FailedToFetchDimensions(e).to_json_string(),

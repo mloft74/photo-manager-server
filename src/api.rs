@@ -19,7 +19,9 @@ const IMAGES_DIR: &str = "/var/lib/photo_manager_server/images";
 
 pub async fn make_api_router(action_provider: &(impl ActionProvider + 'static)) -> Router {
     let mut manager = ScreenSaverManager::new();
-    update_canon(&action_provider.get_image_canon_updater(), &mut manager).await;
+    update_canon(&action_provider.get_image_canon_updater(), &mut manager)
+        .await
+        .expect("Could not update canon");
 
     let image_server_router = image_server::create_image_server_router();
 
@@ -33,25 +35,25 @@ pub async fn make_api_router(action_provider: &(impl ActionProvider + 'static)) 
 }
 
 #[derive(Debug, Serialize)]
-enum GetCanonError {
+enum FetchCanonError {
     IO(String),
     FileNameConversionError,
-    ImageDimensions(GetImageDimensionsError),
+    FetchDimensionsError(FetchImageDimensionsError),
 }
 
-impl From<io::Error> for GetCanonError {
+impl From<io::Error> for FetchCanonError {
     fn from(value: io::Error) -> Self {
         Self::IO(value.to_string())
     }
 }
 
-impl From<GetImageDimensionsError> for GetCanonError {
-    fn from(value: GetImageDimensionsError) -> Self {
-        Self::ImageDimensions(value)
+impl From<FetchImageDimensionsError> for FetchCanonError {
+    fn from(value: FetchImageDimensionsError) -> Self {
+        Self::FetchDimensionsError(value)
     }
 }
 
-fn get_canon() -> Result<Vec<Image>, GetCanonError> {
+fn fetch_canon() -> Result<Vec<Image>, FetchCanonError> {
     fs::create_dir_all(IMAGES_DIR)?;
     let images_dir = fs::read_dir(IMAGES_DIR)?;
     let mut images = Vec::new();
@@ -60,9 +62,9 @@ fn get_canon() -> Result<Vec<Image>, GetCanonError> {
         let file_name = entry
             .file_name()
             .to_str()
-            .ok_or(GetCanonError::FileNameConversionError)?
+            .ok_or(FetchCanonError::FileNameConversionError)?
             .to_string();
-        let (width, height) = get_image_dimensions(&file_name)?;
+        let (width, height) = fetch_image_dimensions(&file_name)?;
         images.push(Image {
             file_name,
             width,
@@ -72,29 +74,46 @@ fn get_canon() -> Result<Vec<Image>, GetCanonError> {
     Ok(images)
 }
 
-async fn update_canon(canon_updater: &impl ImageCanonUpdater, manager: &mut ScreenSaverManager) {
-    let images = get_canon().expect("Could not get canon");
+#[derive(Debug, Serialize)]
+enum UpdateCanonError {
+    FetchCanonError(FetchCanonError),
+    FailedToUpdateCanon(String),
+}
+
+impl From<FetchCanonError> for UpdateCanonError {
+    fn from(value: FetchCanonError) -> Self {
+        Self::FetchCanonError(value)
+    }
+}
+
+async fn update_canon(
+    canon_updater: &impl ImageCanonUpdater,
+    manager: &mut ScreenSaverManager,
+) -> Result<(), UpdateCanonError> {
+    let images = fetch_canon()?;
     canon_updater
         .update_canon(images.iter())
         .await
-        .expect("Could not update canon");
+        .map_err(|e| UpdateCanonError::FailedToUpdateCanon(e.to_string()))?;
 
     manager.replace(images.into_iter());
+
+    Ok(())
 }
 
 #[derive(Debug, Serialize)]
-enum GetImageDimensionsError {
+enum FetchImageDimensionsError {
     ErrorOpeningImage(String),
     FailedToGetDimensions(String),
 }
 
-fn get_image_dimensions(file_name: &str) -> Result<(u32, u32), GetImageDimensionsError> {
+fn fetch_image_dimensions(file_name: &str) -> Result<(u32, u32), FetchImageDimensionsError> {
     let path = std::path::Path::new(IMAGES_DIR).join(file_name);
     let image = ImageReader::open(path)
-        .map_err(|e| GetImageDimensionsError::ErrorOpeningImage(e.to_string()))?;
+        .map_err(|e| FetchImageDimensionsError::ErrorOpeningImage(e.to_string()))?;
     let dim = image
         .into_dimensions()
-        .map_err(|e| GetImageDimensionsError::FailedToGetDimensions(e.to_string()))?;
+        .map_err(|e| FetchImageDimensionsError::FailedToGetDimensions(e.to_string()))?;
 
     Ok(dim)
 }
