@@ -1,7 +1,6 @@
-use std::fs;
+use std::{fs, io};
 
 use axum::{middleware, Router};
-use futures::TryStreamExt;
 use image::io::Reader as ImageReader;
 use serde::Serialize;
 use tower_http::trace::TraceLayer;
@@ -32,30 +31,48 @@ pub async fn make_api_router(action_provider: &(impl ActionProvider + 'static)) 
         .layer(TraceLayer::new_for_http())
 }
 
-fn get_canon() -> Vec<Image> {
-    fs::create_dir_all(IMAGES_DIR).expect("Could not create images directory");
-    let images_dir = fs::read_dir(IMAGES_DIR).expect("Could not read images directory");
+#[derive(Debug, Serialize)]
+enum GetCanonError {
+    IO(String),
+    FileNameConversionError,
+    ImageDimensions(GetImageDimensionsError),
+}
+
+impl From<io::Error> for GetCanonError {
+    fn from(value: io::Error) -> Self {
+        Self::IO(value.to_string())
+    }
+}
+
+impl From<GetImageDimensionsError> for GetCanonError {
+    fn from(value: GetImageDimensionsError) -> Self {
+        Self::ImageDimensions(value)
+    }
+}
+
+fn get_canon() -> Result<Vec<Image>, GetCanonError> {
+    fs::create_dir_all(IMAGES_DIR)?;
+    let images_dir = fs::read_dir(IMAGES_DIR)?;
     let mut images = Vec::new();
     for entry in images_dir {
-        let entry = entry.expect("Could not get entry in images directory");
+        let entry = entry?;
         let file_name = entry
             .file_name()
             .to_str()
-            .expect("Could not convert file name to &str")
+            .ok_or(GetCanonError::FileNameConversionError)?
             .to_string();
-        let (width, height) =
-            get_image_dimensions(&file_name).expect("Could not get dimensions of image");
+        let (width, height) = get_image_dimensions(&file_name)?;
         images.push(Image {
             file_name,
             width,
             height,
         })
     }
-    images
+    Ok(images)
 }
 
 async fn update_canon(canon_updater: impl ImageCanonUpdater) -> ScreenSaverManager {
-    let images = get_canon();
+    let images = get_canon().expect("Could not get canon");
     canon_updater
         .update_canon(images.iter())
         .await
