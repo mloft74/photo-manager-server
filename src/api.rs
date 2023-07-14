@@ -18,7 +18,8 @@ mod routing;
 const IMAGES_DIR: &str = "/var/lib/photo_manager_server/images";
 
 pub async fn make_api_router(action_provider: &(impl ActionProvider + 'static)) -> Router {
-    let manager = update_canon(action_provider.get_image_canon_updater()).await;
+    let mut manager = ScreenSaverManager::new();
+    update_canon(&action_provider.get_image_canon_updater(), &mut manager).await;
 
     let image_server_router = image_server::create_image_server_router();
 
@@ -71,17 +72,14 @@ fn get_canon() -> Result<Vec<Image>, GetCanonError> {
     Ok(images)
 }
 
-async fn update_canon(canon_updater: impl ImageCanonUpdater) -> ScreenSaverManager {
+async fn update_canon(canon_updater: &impl ImageCanonUpdater, manager: &mut ScreenSaverManager) {
     let images = get_canon().expect("Could not get canon");
     canon_updater
         .update_canon(images.iter())
         .await
         .expect("Could not update canon");
 
-    let mut manager = ScreenSaverManager::new();
     manager.replace(images.into_iter());
-
-    manager
 }
 
 #[derive(Debug, Serialize)]
