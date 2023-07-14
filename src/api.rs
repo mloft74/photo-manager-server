@@ -32,7 +32,7 @@ pub async fn make_api_router(action_provider: &(impl ActionProvider + 'static)) 
         .layer(TraceLayer::new_for_http())
 }
 
-async fn update_canon(canon_updater: impl ImageCanonUpdater) -> ScreenSaverManager {
+fn get_canon() -> Vec<Image> {
     fs::create_dir_all(IMAGES_DIR).expect("Could not create images directory");
     let images_dir = fs::read_dir(IMAGES_DIR).expect("Could not read images directory");
     let mut images = Vec::new();
@@ -51,6 +51,11 @@ async fn update_canon(canon_updater: impl ImageCanonUpdater) -> ScreenSaverManag
             height,
         })
     }
+    images
+}
+
+async fn update_canon(canon_updater: impl ImageCanonUpdater) -> ScreenSaverManager {
+    let images = get_canon();
     canon_updater
         .update_canon(images.iter())
         .await
