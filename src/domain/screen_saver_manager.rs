@@ -1,7 +1,4 @@
-use std::{
-    collections::VecDeque,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
 use rand::{seq::SliceRandom, thread_rng, Rng};
 
@@ -9,13 +6,13 @@ use crate::domain::models::Image;
 
 #[derive(Clone)]
 pub struct ScreenSaverManager {
-    images: Arc<Mutex<VecDeque<Image>>>,
+    images: Arc<Mutex<Vec<Image>>>,
 }
 
 impl ScreenSaverManager {
     pub fn new() -> Self {
         Self {
-            images: Arc::new(Mutex::new(VecDeque::new())),
+            images: Arc::new(Mutex::new(Vec::new())),
         }
     }
 
@@ -25,7 +22,7 @@ impl ScreenSaverManager {
         self.images
             .lock()
             .expect("Problem acquiring lock in take_next")
-            .pop_front()
+            .pop()
     }
 
     /// Inserts an `Image` into a random location in the internal structure.
