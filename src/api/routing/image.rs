@@ -26,7 +26,10 @@ pub fn make_image_router(
                 action_provider.get_image_canon_updater(),
                 manager,
             ))
-            .merge(take_next::make_take_next_router(manager)),
+            .merge(take_next::make_take_next_router(
+                action_provider.get_image_canon_fetcher(),
+                manager,
+            )),
     )
 }
 
