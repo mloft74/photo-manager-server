@@ -4,9 +4,9 @@ use axum::{
     Json, Router,
 };
 use hyper::StatusCode;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
-use crate::domain::{actions::images::ImageGetter, models::Image};
+use crate::{api::routing::image::ImageResponse, domain::actions::images::ImageGetter};
 
 pub fn make_get_router<T: ImageGetter + 'static>(image_getter: T) -> Router {
     Router::new()
@@ -17,23 +17,6 @@ pub fn make_get_router<T: ImageGetter + 'static>(image_getter: T) -> Router {
 #[derive(Deserialize)]
 struct FindImage {
     file_name: String,
-}
-
-#[derive(Serialize)]
-struct ImageResponse {
-    file_name: String,
-    width: u32,
-    height: u32,
-}
-
-impl From<Image> for ImageResponse {
-    fn from(value: Image) -> Self {
-        Self {
-            file_name: value.file_name,
-            width: value.width,
-            height: value.height,
-        }
-    }
 }
 
 async fn get_image<T: ImageGetter>(
