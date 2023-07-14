@@ -24,12 +24,14 @@ use crate::{
     domain::{
         actions::images::{ImageFetcher, ImageSaver},
         models::Image,
+        screen_saver_manager::ScreenSaverManager,
     },
 };
 
 pub fn make_upload_router<TFetcher: ImageFetcher + 'static, TSaver: ImageSaver + 'static>(
     image_fetcher: TFetcher,
     image_saver: TSaver,
+    manager: &ScreenSaverManager,
 ) -> Router {
     Router::new()
         .route("/upload", post(upload_image))
@@ -40,6 +42,7 @@ pub fn make_upload_router<TFetcher: ImageFetcher + 'static, TSaver: ImageSaver +
         .with_state(UploadState {
             fetcher: image_fetcher,
             saver: image_saver,
+            manager: manager.clone(),
         })
 }
 
@@ -47,6 +50,7 @@ pub fn make_upload_router<TFetcher: ImageFetcher + 'static, TSaver: ImageSaver +
 struct UploadState<TFetcher: ImageFetcher, TSaver: ImageSaver> {
     fetcher: TFetcher,
     saver: TSaver,
+    manager: ScreenSaverManager,
 }
 
 #[derive(Serialize)]
@@ -83,7 +87,7 @@ async fn upload_image<TFetcher: ImageFetcher, TSaver: ImageSaver>(
 }
 
 async fn upload_image_inner<TFetcher: ImageFetcher, TSaver: ImageSaver>(
-    state: State<UploadState<TFetcher, TSaver>>,
+    mut state: State<UploadState<TFetcher, TSaver>>,
     mut multipart: Multipart,
 ) -> Result<(), (StatusCode, String)> {
     let (file_name, file_field) = validate_field(multipart.next_field().await).map_err(|e| {
@@ -120,20 +124,20 @@ async fn upload_image_inner<TFetcher: ImageFetcher, TSaver: ImageSaver>(
 
     tracing::debug!("image dimensions: {} x {}", image_width, image_height);
 
-    state
-        .saver
-        .save_image(&Image {
-            file_name,
-            width: image_width,
-            height: image_height,
-        })
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                UploadImageError::GeneralError(e.to_string()).to_json_string(),
-            )
-        })?;
+    let image = Image {
+        file_name,
+        width: image_width,
+        height: image_height,
+    };
+
+    state.saver.save_image(&image).await.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            UploadImageError::GeneralError(e.to_string()).to_json_string(),
+        )
+    })?;
+
+    state.manager.insert(image);
 
     Ok(())
 }
