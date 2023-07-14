@@ -1,5 +1,4 @@
 use axum::{middleware, Router};
-use tower_http::trace::TraceLayer;
 
 use crate::domain::{actions::ActionProvider, screen_saver_manager::ScreenSaverManager};
 
@@ -25,5 +24,4 @@ pub async fn make_api_router(action_provider: &(impl ActionProvider + 'static)) 
         .merge(image_server_router)
         .merge(demo_router)
         .layer(middleware::from_fn(request_tracing::print_request_response))
-        .layer(TraceLayer::new_for_http())
 }
