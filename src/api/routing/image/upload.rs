@@ -10,7 +10,6 @@ use axum::{
 };
 use futures::{Stream, TryStreamExt};
 use hyper::{body::Bytes, StatusCode};
-use image::io::Reader as ImageReader;
 use serde::Serialize;
 use serde_json::json;
 use tokio::{fs::File, io::BufWriter};
@@ -18,7 +17,7 @@ use tokio_util::io::StreamReader;
 use tower_http::limit::RequestBodyLimitLayer;
 
 use crate::{
-    api::IMAGES_DIR,
+    api::{self, GetImageDimensionsError, IMAGES_DIR},
     domain::{
         actions::images::{ImageGetter, ImageSaver},
         models::Image,
@@ -108,7 +107,7 @@ async fn upload_image_inner<TGetter: ImageGetter, TSaver: ImageSaver>(
         .await
         .map_err(|(s, e)| (s, e.to_json_string()))?;
 
-    let (image_width, image_height) = get_image_dimensions(&file_name).map_err(|e| {
+    let (image_width, image_height) = api::get_image_dimensions(&file_name).map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             UploadImageError::FailedToFetchDimensions(e).to_json_string(),
@@ -218,21 +217,4 @@ fn validate_field(
     }
 
     Ok((file_name.to_string(), field))
-}
-
-#[derive(Serialize)]
-enum GetImageDimensionsError {
-    ErrorOpeningImage(String),
-    FailedToGetDimensions(String),
-}
-
-fn get_image_dimensions(file_name: &str) -> Result<(u32, u32), GetImageDimensionsError> {
-    let path = std::path::Path::new(IMAGES_DIR).join(file_name);
-    let image = ImageReader::open(path)
-        .map_err(|e| GetImageDimensionsError::ErrorOpeningImage(e.to_string()))?;
-    let dim = image
-        .into_dimensions()
-        .map_err(|e| GetImageDimensionsError::FailedToGetDimensions(e.to_string()))?;
-
-    Ok(dim)
 }
