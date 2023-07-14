@@ -21,7 +21,7 @@ pub async fn make_api_router(action_provider: &(impl ActionProvider + 'static)) 
     let mut manager = ScreenSaverManager::new();
     update_canon(&action_provider.get_image_canon_updater(), &mut manager)
         .await
-        .expect("Could not update canon");
+        .expect("Canon should be updatable from startup");
 
     let image_server_router = image_server::create_image_server_router();
 

@@ -1,7 +1,7 @@
 use std::env;
 
-use sea_orm::{Database, DatabaseConnection, DbErr};
-use sea_orm_migration::prelude::*;
+use sea_orm::{Database, DatabaseConnection};
+use sea_orm_migration::MigratorTrait;
 
 use crate::{
     domain::actions::ActionProvider,
@@ -13,16 +13,20 @@ mod entities;
 mod migrator;
 mod persistence_manager;
 
-pub async fn init_persistence() -> Result<impl ActionProvider, Box<dyn std::error::Error>> {
-    let db_conn = connect().await?;
-    Ok(PersistenceManager::new(db_conn))
+pub async fn init_persistence() -> impl ActionProvider {
+    let db_conn = connect().await;
+    PersistenceManager::new(db_conn)
 }
 
-async fn connect() -> Result<DatabaseConnection, DbErr> {
+async fn connect() -> DatabaseConnection {
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let db_conn = Database::connect(db_url).await?;
+    let db_conn = Database::connect(db_url)
+        .await
+        .expect("Database should be connectable from startup");
 
-    Migrator::up(&db_conn, None).await?;
+    Migrator::up(&db_conn, None)
+        .await
+        .expect("Database should be migratable from startup");
 
-    Ok(db_conn)
+    db_conn
 }
