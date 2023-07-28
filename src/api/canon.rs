@@ -7,9 +7,8 @@ use crate::{
         image_dimensions::{self, FetchImageDimensionsError},
         IMAGES_DIR,
     },
-    domain::{
-        actions::images::ImageCanonUpdater, models::Image, screen_saver_manager::ScreenSaverManager,
-    },
+    domain::{models::Image, screen_saver_manager::ScreenSaverManager},
+    persistence::image::image_canon_updater::ImageCanonUpdater,
 };
 
 #[derive(Debug, Serialize)]
@@ -65,7 +64,7 @@ impl From<FetchCanonError> for UpdateCanonError {
 }
 
 pub async fn update_canon(
-    canon_updater: &impl ImageCanonUpdater,
+    canon_updater: &ImageCanonUpdater,
     manager: &mut ScreenSaverManager,
 ) -> Result<(), UpdateCanonError> {
     let images = fetch_canon()?;

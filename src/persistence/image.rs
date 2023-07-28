@@ -2,11 +2,11 @@ use sea_orm::ActiveValue;
 
 use crate::{domain::models::Image, persistence::entities::images};
 
-pub mod db_image_canon_fetcher;
-pub mod db_image_canon_updater;
-pub mod db_image_fetcher;
-pub mod db_image_saver;
-pub mod db_paginated_images_fetcher;
+pub mod image_canon_fetcher;
+pub mod image_canon_updater;
+pub mod image_fetcher;
+pub mod image_saver;
+pub mod paginated_images_fetcher;
 
 fn active_model_for_insert_from(image: &Image) -> images::ActiveModel {
     images::ActiveModel {

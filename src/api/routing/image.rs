@@ -1,8 +1,9 @@
 use axum::Router;
 use serde::Serialize;
 
-use crate::domain::{
-    actions::ActionProvider, models::Image, screen_saver_manager::ScreenSaverManager,
+use crate::{
+    domain::{models::Image, screen_saver_manager::ScreenSaverManager},
+    persistence::persistence_manager::PersistenceManager,
 };
 
 mod get;
@@ -11,24 +12,26 @@ mod update_canon;
 mod upload;
 
 pub fn make_image_router(
-    action_provider: &(impl ActionProvider + 'static),
-    manager: &ScreenSaverManager,
+    persistence_manager: &PersistenceManager,
+    manager: ScreenSaverManager,
 ) -> Router {
     Router::new().nest(
         "/image",
         Router::new()
             .merge(upload::make_upload_router(
-                action_provider.get_image_fetcher(),
-                action_provider.get_image_saver(),
-                manager,
+                persistence_manager.make_image_fetcher(),
+                persistence_manager.make_image_saver(),
+                manager.clone(),
             ))
-            .merge(get::make_get_router(action_provider.get_image_fetcher()))
+            .merge(get::make_get_router(
+                persistence_manager.make_image_fetcher(),
+            ))
             .merge(update_canon::make_update_canon_router(
-                action_provider.get_image_canon_updater(),
-                manager,
+                persistence_manager.make_image_canon_updater(),
+                manager.clone(),
             ))
             .merge(take_next::make_take_next_router(
-                action_provider.get_image_canon_fetcher(),
+                persistence_manager.make_image_canon_fetcher(),
                 manager,
             )),
     )

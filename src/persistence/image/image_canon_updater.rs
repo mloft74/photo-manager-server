@@ -1,33 +1,29 @@
 use std::collections::HashMap;
 
-use async_trait::async_trait;
 use sea_orm::{
     ActiveModelTrait, ActiveValue, ColumnTrait, DatabaseConnection, DbErr, EntityTrait,
     QueryFilter, TransactionTrait,
 };
 
 use crate::{
-    domain::{actions::images::ImageCanonUpdater, models::Image},
+    domain::models::Image,
     persistence::{
-        db_image::active_model_for_insert_from,
         entities::{images, prelude::Images},
+        image::active_model_for_insert_from,
     },
 };
 
 #[derive(Clone)]
-pub struct DbImageCanonUpdater {
+pub struct ImageCanonUpdater {
     db_conn: DatabaseConnection,
 }
 
-impl DbImageCanonUpdater {
+impl ImageCanonUpdater {
     pub fn new(db_conn: DatabaseConnection) -> Self {
         Self { db_conn }
     }
-}
 
-#[async_trait]
-impl ImageCanonUpdater for DbImageCanonUpdater {
-    async fn update_canon<'a, T: Iterator<Item = &'a Image> + Send>(
+    pub async fn update_canon<'a, T: Iterator<Item = &'a Image> + Send>(
         &self,
         canon: T,
     ) -> Result<(), String> {

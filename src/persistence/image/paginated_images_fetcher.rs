@@ -1,25 +1,21 @@
-use async_trait::async_trait;
 use sea_orm::{CursorTrait, DatabaseConnection, EntityTrait};
 
 use crate::{
-    domain::{actions::images::PaginatedImagesFetcher, models::Image},
+    domain::models::Image,
     persistence::entities::{images, prelude::Images},
 };
 
 #[derive(Clone)]
-pub struct DbPaginatedImagesFetcher {
+pub struct PaginatedImagesFetcher {
     db_conn: DatabaseConnection,
 }
 
-impl DbPaginatedImagesFetcher {
+impl PaginatedImagesFetcher {
     pub fn new(db_conn: DatabaseConnection) -> Self {
         Self { db_conn }
     }
-}
 
-#[async_trait]
-impl PaginatedImagesFetcher for DbPaginatedImagesFetcher {
-    async fn fetch_images(&self, count: u64, after: Option<i32>) -> Result<Vec<Image>, String> {
+    pub async fn fetch_images(&self, count: u64, after: Option<i32>) -> Result<Vec<Image>, String> {
         let mut pagination = Images::find().cursor_by(images::Column::Id);
         let pagination = match after {
             Some(cursor) => pagination.after(cursor),

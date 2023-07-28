@@ -3,17 +3,14 @@ use std::env;
 use sea_orm::{Database, DatabaseConnection};
 use sea_orm_migration::MigratorTrait;
 
-use crate::{
-    domain::actions::ActionProvider,
-    persistence::{migrator::Migrator, persistence_manager::PersistenceManager},
-};
+use crate::persistence::{migrator::Migrator, persistence_manager::PersistenceManager};
 
-mod db_image;
 mod entities;
+pub mod image;
 mod migrator;
-mod persistence_manager;
+pub mod persistence_manager;
 
-pub async fn init_persistence() -> impl ActionProvider {
+pub async fn init_persistence() -> PersistenceManager {
     let db_conn = connect().await;
     PersistenceManager::new(db_conn)
 }

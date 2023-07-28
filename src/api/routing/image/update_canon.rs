@@ -5,24 +5,25 @@ use serde_json::json;
 
 use crate::{
     api::canon::{self, UpdateCanonError},
-    domain::{actions::images::ImageCanonUpdater, screen_saver_manager::ScreenSaverManager},
+    domain::screen_saver_manager::ScreenSaverManager,
+    persistence::image::image_canon_updater::ImageCanonUpdater,
 };
 
-pub fn make_update_canon_router<T: ImageCanonUpdater + 'static>(
-    canon_updater: T,
-    manager: &ScreenSaverManager,
+pub fn make_update_canon_router(
+    canon_updater: ImageCanonUpdater,
+    manager: ScreenSaverManager,
 ) -> Router {
     Router::new()
         .route("/update_canon", post(update_canon))
         .with_state(UpdateCanonState {
             canon_updater,
-            manager: manager.clone(),
+            manager,
         })
 }
 
 #[derive(Clone)]
-struct UpdateCanonState<T: ImageCanonUpdater> {
-    canon_updater: T,
+struct UpdateCanonState {
+    canon_updater: ImageCanonUpdater,
     manager: ScreenSaverManager,
 }
 
@@ -43,9 +44,7 @@ struct UpdateCanonErrorWrapper<'a> {
     error: &'a UpdateCanonError,
 }
 
-async fn update_canon<T: ImageCanonUpdater>(
-    state: State<UpdateCanonState<T>>,
-) -> Result<(), (StatusCode, String)> {
+async fn update_canon(state: State<UpdateCanonState>) -> Result<(), (StatusCode, String)> {
     let UpdateCanonState {
         canon_updater,
         mut manager,

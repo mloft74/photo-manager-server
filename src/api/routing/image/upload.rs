@@ -21,17 +21,14 @@ use crate::{
         image_dimensions::{self, FetchImageDimensionsError},
         IMAGES_DIR,
     },
-    domain::{
-        actions::images::{ImageFetcher, ImageSaver},
-        models::Image,
-        screen_saver_manager::ScreenSaverManager,
-    },
+    domain::{models::Image, screen_saver_manager::ScreenSaverManager},
+    persistence::image::{image_fetcher::ImageFetcher, image_saver::ImageSaver},
 };
 
-pub fn make_upload_router<TFetcher: ImageFetcher + 'static, TSaver: ImageSaver + 'static>(
-    image_fetcher: TFetcher,
-    image_saver: TSaver,
-    manager: &ScreenSaverManager,
+pub fn make_upload_router(
+    image_fetcher: ImageFetcher,
+    image_saver: ImageSaver,
+    manager: ScreenSaverManager,
 ) -> Router {
     Router::new()
         .route("/upload", post(upload_image))
@@ -42,14 +39,14 @@ pub fn make_upload_router<TFetcher: ImageFetcher + 'static, TSaver: ImageSaver +
         .with_state(UploadState {
             fetcher: image_fetcher,
             saver: image_saver,
-            manager: manager.clone(),
+            manager,
         })
 }
 
 #[derive(Clone)]
-struct UploadState<TFetcher: ImageFetcher, TSaver: ImageSaver> {
-    fetcher: TFetcher,
-    saver: TSaver,
+struct UploadState {
+    fetcher: ImageFetcher,
+    saver: ImageSaver,
     manager: ScreenSaverManager,
 }
 
@@ -79,15 +76,15 @@ impl UploadImageError {
 }
 
 // Handler that accepts a multipart form upload and streams each field to a file.
-async fn upload_image<TFetcher: ImageFetcher, TSaver: ImageSaver>(
-    state: State<UploadState<TFetcher, TSaver>>,
+async fn upload_image(
+    state: State<UploadState>,
     multipart: Multipart,
 ) -> Result<(), (StatusCode, String)> {
     upload_image_inner(state, multipart).await
 }
 
-async fn upload_image_inner<TFetcher: ImageFetcher, TSaver: ImageSaver>(
-    mut state: State<UploadState<TFetcher, TSaver>>,
+async fn upload_image_inner(
+    mut state: State<UploadState>,
     mut multipart: Multipart,
 ) -> Result<(), (StatusCode, String)> {
     let (file_name, file_field) = validate_field(multipart.next_field().await).map_err(|e| {

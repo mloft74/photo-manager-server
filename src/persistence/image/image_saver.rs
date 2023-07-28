@@ -1,28 +1,24 @@
-use async_trait::async_trait;
 use sea_orm::{DatabaseConnection, EntityTrait};
 
 use crate::{
-    domain::{actions::images::ImageSaver, models::Image},
+    domain::models::Image,
     persistence::{
-        db_image::active_model_for_insert_from,
         entities::{images, prelude::Images},
+        image::active_model_for_insert_from,
     },
 };
 
 #[derive(Clone)]
-pub struct DbImageSaver {
+pub struct ImageSaver {
     db_conn: DatabaseConnection,
 }
 
-impl DbImageSaver {
+impl ImageSaver {
     pub fn new(db_conn: DatabaseConnection) -> Self {
         Self { db_conn }
     }
-}
 
-#[async_trait]
-impl ImageSaver for DbImageSaver {
-    async fn save_image(&self, image: &Image) -> Result<(), String> {
+    pub async fn save_image(&self, image: &Image) -> Result<(), String> {
         let model: images::ActiveModel = active_model_for_insert_from(image);
         Images::insert(model)
             .exec(&self.db_conn)

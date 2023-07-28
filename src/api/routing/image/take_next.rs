@@ -4,20 +4,20 @@ use serde::Serialize;
 use serde_json::json;
 
 use crate::{
-    api::routing::image::ImageResponse,
-    domain::{actions::images::ImageCanonFetcher, screen_saver_manager::ScreenSaverManager},
+    api::routing::image::ImageResponse, domain::screen_saver_manager::ScreenSaverManager,
+    persistence::image::image_canon_fetcher::ImageCanonFetcher,
 };
 
-pub fn make_take_next_router<T: ImageCanonFetcher + 'static>(
-    canon_fetcher: T,
-    manager: &ScreenSaverManager,
+pub fn make_take_next_router(
+    canon_fetcher: ImageCanonFetcher,
+    manager: ScreenSaverManager,
 ) -> Router {
     Router::new()
         // Using post as this route mutates state
         .route("/take_next", post(take_next))
         .with_state(TakeNextState {
             canon_fetcher,
-            manager: manager.clone(),
+            manager,
         })
 }
 
@@ -45,13 +45,13 @@ impl TakeNextImageError {
 }
 
 #[derive(Clone)]
-struct TakeNextState<T: ImageCanonFetcher> {
-    canon_fetcher: T,
+struct TakeNextState {
+    canon_fetcher: ImageCanonFetcher,
     manager: ScreenSaverManager,
 }
 
-async fn take_next<T: ImageCanonFetcher>(
-    mut state: State<TakeNextState<T>>,
+async fn take_next(
+    mut state: State<TakeNextState>,
 ) -> Result<Json<ImageResponse>, (StatusCode, String)> {
     let image = state.manager.take_next();
     if let Some(image) = image {

@@ -1,25 +1,18 @@
-use async_trait::async_trait;
 use sea_orm::{DatabaseConnection, EntityTrait};
 
-use crate::{
-    domain::{actions::images::ImageCanonFetcher, models::Image},
-    persistence::entities::prelude::Images,
-};
+use crate::{domain::models::Image, persistence::entities::prelude::Images};
 
 #[derive(Clone)]
-pub struct DbImageCanonFetcher {
+pub struct ImageCanonFetcher {
     db_conn: DatabaseConnection,
 }
 
-impl DbImageCanonFetcher {
+impl ImageCanonFetcher {
     pub fn new(db_conn: DatabaseConnection) -> Self {
         Self { db_conn }
     }
-}
 
-#[async_trait]
-impl ImageCanonFetcher for DbImageCanonFetcher {
-    async fn fetch_canon(&self) -> Result<Vec<Image>, String> {
+    pub async fn fetch_canon(&self) -> Result<Vec<Image>, String> {
         let images: Vec<Image> = Images::find()
             .all(&self.db_conn)
             .await
