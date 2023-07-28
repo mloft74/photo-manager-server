@@ -13,6 +13,11 @@ pub trait ImageSaver: Clone + Send + Sync {
 }
 
 #[async_trait]
+pub trait PaginatedImagesFetcher: Clone + Send + Sync {
+    async fn fetch_images(&self, count: u64, after: Option<i32>) -> Result<Vec<Image>, String>;
+}
+
+#[async_trait]
 pub trait ImageCanonFetcher: Clone + Send + Sync {
     async fn fetch_canon(&self) -> Result<Vec<Image>, String>;
 }

@@ -5,6 +5,7 @@ use crate::{
     persistence::db_image::{
         db_image_canon_fetcher::DbImageCanonFetcher, db_image_canon_updater::DbImageCanonUpdater,
         db_image_fetcher::DbImageFetcher, db_image_saver::DbImageSaver,
+        db_paginated_images_fetcher::DbPaginatedImagesFetcher,
     },
 };
 
@@ -37,5 +38,10 @@ impl ActionProvider for PersistenceManager {
     type ImageCanonUpdaterImpl = DbImageCanonUpdater;
     fn get_image_canon_updater(&self) -> Self::ImageCanonUpdaterImpl {
         Self::ImageCanonUpdaterImpl::new(self.db_conn.clone())
+    }
+
+    type PaginatedImagesFetcherImpl = DbPaginatedImagesFetcher;
+    fn make_paginated_images_fetcher(&self) -> Self::PaginatedImagesFetcherImpl {
+        Self::PaginatedImagesFetcherImpl::new(self.db_conn.clone())
     }
 }
