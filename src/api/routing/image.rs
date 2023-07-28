@@ -7,6 +7,7 @@ use crate::{
 };
 
 mod get;
+mod paginated;
 mod take_next;
 mod update_canon;
 mod upload;
@@ -32,7 +33,10 @@ pub fn make_image_router(
             ))
             .merge(take_next::make_take_next_router(
                 persistence_manager.make_image_canon_fetcher(),
-                manager,
+                manager.clone(),
+            ))
+            .merge(paginated::make_paginated_router(
+                persistence_manager.make_paginated_images_fetcher(),
             )),
     )
 }

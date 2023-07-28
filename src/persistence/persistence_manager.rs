@@ -31,7 +31,7 @@ impl PersistenceManager {
         ImageCanonUpdater::new(self.db_conn.clone())
     }
 
-    fn make_paginated_images_fetcher(&self) -> PaginatedImagesFetcher {
+    pub fn make_paginated_images_fetcher(&self) -> PaginatedImagesFetcher {
         PaginatedImagesFetcher::new(self.db_conn.clone())
     }
 }
