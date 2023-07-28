@@ -60,7 +60,7 @@ async fn take_next<T: ImageCanonFetcher>(
         let images = state.canon_fetcher.fetch_canon().await.map_err(|e| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                TakeNextImageError::FailedToFetchCanon(e.to_string()).to_json_string(),
+                TakeNextImageError::FailedToFetchCanon(e).to_json_string(),
             )
         })?;
         state.manager.replace(images.into_iter());

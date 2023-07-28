@@ -30,9 +30,12 @@ impl ImageCanonUpdater for DbImageCanonUpdater {
     async fn update_canon<'a, T: Iterator<Item = &'a Image> + Send>(
         &self,
         canon: T,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> Result<(), String> {
         let mut models = {
-            let models = Images::find().all(&self.db_conn).await?;
+            let models = Images::find()
+                .all(&self.db_conn)
+                .await
+                .map_err(|e| e.to_string())?;
             let mut model_map = HashMap::new();
             for model in models {
                 model_map.insert(model.file_name.clone(), model);
@@ -86,7 +89,8 @@ impl ImageCanonUpdater for DbImageCanonUpdater {
                     Ok(())
                 })
             })
-            .await?;
+            .await
+            .map_err(|e| e.to_string())?;
 
         Ok(())
     }

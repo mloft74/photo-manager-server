@@ -72,7 +72,7 @@ pub async fn update_canon(
     canon_updater
         .update_canon(images.iter())
         .await
-        .map_err(|e| UpdateCanonError::FailedToUpdateCanon(e.to_string()))?;
+        .map_err(UpdateCanonError::FailedToUpdateCanon)?;
 
     manager.replace(images.into_iter());
 

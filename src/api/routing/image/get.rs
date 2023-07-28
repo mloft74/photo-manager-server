@@ -27,7 +27,7 @@ async fn get_image<T: ImageFetcher>(
     let image = state
         .fetch_image(file_name)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?
         .ok_or_else(|| {
             (
                 StatusCode::NOT_FOUND,

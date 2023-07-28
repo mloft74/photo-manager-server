@@ -100,7 +100,7 @@ async fn upload_image_inner<TFetcher: ImageFetcher, TSaver: ImageSaver>(
     let existing_image = state.fetcher.fetch_image(&file_name).await.map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
-            UploadImageError::GeneralError(e.to_string()).to_json_string(),
+            UploadImageError::GeneralError(e).to_json_string(),
         )
     })?;
     if existing_image.is_some() {
@@ -133,7 +133,7 @@ async fn upload_image_inner<TFetcher: ImageFetcher, TSaver: ImageSaver>(
     state.saver.save_image(&image).await.map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
-            UploadImageError::GeneralError(e.to_string()).to_json_string(),
+            UploadImageError::GeneralError(e).to_json_string(),
         )
     })?;
 

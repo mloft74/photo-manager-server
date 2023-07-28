@@ -22,9 +22,12 @@ impl DbImageSaver {
 
 #[async_trait]
 impl ImageSaver for DbImageSaver {
-    async fn save_image(&self, image: &Image) -> Result<(), Box<dyn std::error::Error>> {
+    async fn save_image(&self, image: &Image) -> Result<(), String> {
         let model: images::ActiveModel = active_model_for_insert_from(image);
-        Images::insert(model).exec(&self.db_conn).await?;
+        Images::insert(model)
+            .exec(&self.db_conn)
+            .await
+            .map_err(|e| e.to_string())?;
 
         Ok(())
     }

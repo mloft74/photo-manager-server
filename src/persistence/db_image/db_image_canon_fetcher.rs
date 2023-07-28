@@ -19,10 +19,11 @@ impl DbImageCanonFetcher {
 
 #[async_trait]
 impl ImageCanonFetcher for DbImageCanonFetcher {
-    async fn fetch_canon(&self) -> Result<Vec<Image>, Box<dyn std::error::Error>> {
+    async fn fetch_canon(&self) -> Result<Vec<Image>, String> {
         let images: Vec<Image> = Images::find()
             .all(&self.db_conn)
-            .await?
+            .await
+            .map_err(|e| e.to_string())?
             .into_iter()
             .map(|m| m.into())
             .collect();

@@ -19,14 +19,12 @@ impl DbImageFetcher {
 
 #[async_trait]
 impl ImageFetcher for DbImageFetcher {
-    async fn fetch_image(
-        &self,
-        file_name: &str,
-    ) -> Result<Option<Image>, Box<dyn std::error::Error>> {
+    async fn fetch_image(&self, file_name: &str) -> Result<Option<Image>, String> {
         Ok(Images::find()
             .filter(images::Column::FileName.eq(file_name))
             .one(&self.db_conn)
-            .await?
+            .await
+            .map_err(|e| e.to_string())?
             .map(|m| m.into()))
     }
 }
