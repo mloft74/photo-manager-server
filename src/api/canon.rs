@@ -1,4 +1,4 @@
-use std::{fs, io};
+use tokio::{fs, io};
 
 use serde::Serialize;
 
@@ -30,12 +30,11 @@ impl From<FetchImageDimensionsError> for FetchCanonError {
     }
 }
 
-pub fn fetch_canon() -> Result<Vec<Image>, FetchCanonError> {
-    fs::create_dir_all(IMAGES_DIR)?;
-    let images_dir = fs::read_dir(IMAGES_DIR)?;
+pub async fn fetch_canon() -> Result<Vec<Image>, FetchCanonError> {
+    fs::create_dir_all(IMAGES_DIR).await?;
+    let mut images_dir = fs::read_dir(IMAGES_DIR).await?;
     let mut images = Vec::new();
-    for entry in images_dir {
-        let entry = entry?;
+    while let Some(entry) = images_dir.next_entry().await? {
         let file_name = entry
             .file_name()
             .to_str()
@@ -67,7 +66,7 @@ pub async fn update_canon(
     canon_updater: &ImageCanonUpdater,
     manager: &mut ScreenSaverManager,
 ) -> Result<(), UpdateCanonError> {
-    let images = fetch_canon()?;
+    let images = fetch_canon().await?;
     canon_updater
         .update_canon(images.iter())
         .await
