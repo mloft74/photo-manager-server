@@ -1,10 +1,11 @@
 use axum::{extract::State, routing::post, Router};
 use hyper::StatusCode;
-use serde::Serialize;
-use serde_json::json;
 
 use crate::{
-    api::canon::{self, UpdateCanonError},
+    api::{
+        canon::{self, UpdateCanonError},
+        routing::ApiError,
+    },
     domain::screen_saver_manager::ScreenSaverManager,
     persistence::image::image_canon_updater::ImageCanonUpdater,
 };
@@ -27,22 +28,7 @@ struct UpdateCanonState {
     manager: ScreenSaverManager,
 }
 
-impl UpdateCanonError {
-    fn to_json_string(&self) -> String {
-        serde_json::to_string(&UpdateCanonErrorWrapper { error: self }).unwrap_or_else(|e| {
-            json!({
-                "error": "jsonConverionFailed",
-                "message": e.to_string(),
-            })
-            .to_string()
-        })
-    }
-}
-
-#[derive(Serialize)]
-struct UpdateCanonErrorWrapper<'a> {
-    error: &'a UpdateCanonError,
-}
+impl ApiError for UpdateCanonError {}
 
 async fn update_canon(state: State<UpdateCanonState>) -> Result<(), (StatusCode, String)> {
     let UpdateCanonState {

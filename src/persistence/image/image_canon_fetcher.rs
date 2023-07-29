@@ -8,7 +8,7 @@ pub struct ImageCanonFetcher {
 }
 
 impl ImageCanonFetcher {
-    pub fn new(db_conn: DbConn) -> Self {
+    pub(in crate::persistence) fn new(db_conn: DbConn) -> Self {
         Self { db_conn }
     }
 

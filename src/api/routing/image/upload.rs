@@ -11,7 +11,6 @@ use axum::{
 use futures::{Stream, TryStreamExt};
 use hyper::{body::Bytes, StatusCode};
 use serde::Serialize;
-use serde_json::json;
 use tokio::{fs::File, io::BufWriter};
 use tokio_util::io::StreamReader;
 use tower_http::limit::RequestBodyLimitLayer;
@@ -19,6 +18,7 @@ use tower_http::limit::RequestBodyLimitLayer;
 use crate::{
     api::{
         image_dimensions::{self, FetchImageDimensionsError},
+        routing::ApiError,
         IMAGES_DIR,
     },
     domain::{models::Image, screen_saver_manager::ScreenSaverManager},
@@ -51,11 +51,6 @@ struct UploadState {
 }
 
 #[derive(Serialize)]
-struct UploadImageErrorWrapper<'a> {
-    error: &'a UploadImageError,
-}
-
-#[derive(Serialize)]
 enum UploadImageError {
     FileFieldErr(FileFieldValidationError),
     ImageAlreadyExists,
@@ -63,17 +58,7 @@ enum UploadImageError {
     GeneralError(String),
 }
 
-impl UploadImageError {
-    fn to_json_string(&self) -> String {
-        serde_json::to_string(&UploadImageErrorWrapper { error: self }).unwrap_or_else(|e| {
-            json!({
-                "error": "jsonConverionFailed",
-                "message": e.to_string(),
-            })
-            .to_string()
-        })
-    }
-}
+impl ApiError for UploadImageError {}
 
 // Handler that accepts a multipart form upload and streams each field to a file.
 async fn upload_image(

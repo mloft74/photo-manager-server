@@ -1,4 +1,6 @@
 use axum::Router;
+use serde::Serialize;
+use serde_json::json;
 
 use crate::{
     domain::screen_saver_manager::ScreenSaverManager,
@@ -21,4 +23,24 @@ pub fn make_api_router(
             ))
             .merge(ping::make_ping_router()),
     )
+}
+
+#[derive(Serialize)]
+struct ApiErrorWrapper<'a, T: ApiError> {
+    error: &'a T,
+}
+
+trait ApiError: Serialize {
+    fn to_json_string(&self) -> String
+    where
+        Self: Sized,
+    {
+        serde_json::to_string(&ApiErrorWrapper { error: self }).unwrap_or_else(|e| {
+            json!({
+                "error": "jsonConverionFailed",
+                "message": e.to_string(),
+            })
+            .to_string()
+        })
+    }
 }

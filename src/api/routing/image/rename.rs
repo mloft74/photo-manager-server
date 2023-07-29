@@ -1,10 +1,12 @@
 use axum::{extract::State, routing::post, Json, Router};
 use hyper::StatusCode;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use tokio::fs;
 
-use crate::{api::IMAGES_DIR, persistence::image::image_renamer::ImageRenamer};
+use crate::{
+    api::{routing::ApiError, IMAGES_DIR},
+    persistence::image::image_renamer::ImageRenamer,
+};
 
 pub fn make_rename_router(renamer: ImageRenamer) -> Router {
     Router::new()
@@ -13,27 +15,12 @@ pub fn make_rename_router(renamer: ImageRenamer) -> Router {
 }
 
 #[derive(Serialize)]
-struct RenameImageErrorWrapper<'a> {
-    error: &'a RenameImageError,
-}
-
-#[derive(Serialize)]
 enum RenameImageError {
-    FsRenameErr(String),
-    PersistenceRenameErr(String),
+    Fs(String),
+    Persistence(String),
 }
 
-impl RenameImageError {
-    fn to_json_string(&self) -> String {
-        serde_json::to_string(&RenameImageErrorWrapper { error: self }).unwrap_or_else(|e| {
-            json!({
-                "error": "jsonConverionFailed",
-                "message": e.to_string(),
-            })
-            .to_string()
-        })
-    }
-}
+impl ApiError for RenameImageError {}
 
 #[derive(Deserialize)]
 struct RenameInput {
@@ -48,7 +35,7 @@ async fn rename_image(
     rename_fs(&input).await.map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
-            RenameImageError::FsRenameErr(e).to_json_string(),
+            RenameImageError::Fs(e).to_json_string(),
         )
     })?;
 
@@ -58,7 +45,7 @@ async fn rename_image(
         .map_err(|e| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                RenameImageError::PersistenceRenameErr(e).to_json_string(),
+                RenameImageError::Persistence(e).to_json_string(),
             )
         })?;
 

@@ -6,6 +6,7 @@ use crate::{
     persistence::persistence_manager::PersistenceManager,
 };
 
+mod delete;
 mod get;
 mod paginated;
 mod rename;
@@ -41,6 +42,9 @@ pub fn make_image_router(
             ))
             .merge(rename::make_rename_router(
                 persistence_manager.make_image_renamer(),
+            ))
+            .merge(delete::make_delete_router(
+                persistence_manager.make_image_deleter(),
             )),
     )
 }

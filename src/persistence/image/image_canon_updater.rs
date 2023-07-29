@@ -19,7 +19,7 @@ pub struct ImageCanonUpdater {
 }
 
 impl ImageCanonUpdater {
-    pub fn new(db_conn: DbConn) -> Self {
+    pub(in crate::persistence) fn new(db_conn: DbConn) -> Self {
         Self { db_conn }
     }
 

@@ -1,10 +1,10 @@
 use axum::{extract::State, routing::post, Json, Router};
 use hyper::StatusCode;
 use serde::Serialize;
-use serde_json::json;
 
 use crate::{
-    api::routing::image::ImageResponse, domain::screen_saver_manager::ScreenSaverManager,
+    api::routing::{image::ImageResponse, ApiError},
+    domain::screen_saver_manager::ScreenSaverManager,
     persistence::image::image_canon_fetcher::ImageCanonFetcher,
 };
 
@@ -22,27 +22,12 @@ pub fn make_take_next_router(
 }
 
 #[derive(Serialize)]
-struct TakeNextImageErrorWrapper<'a> {
-    error: &'a TakeNextImageError,
-}
-
-#[derive(Serialize)]
 enum TakeNextImageError {
     FailedToFetchCanon(String),
     NoDataAfterReloadingImages,
 }
 
-impl TakeNextImageError {
-    fn to_json_string(&self) -> String {
-        serde_json::to_string(&TakeNextImageErrorWrapper { error: self }).unwrap_or_else(|e| {
-            json!({
-                "error": "jsonConverionFailed",
-                "message": e.to_string(),
-            })
-            .to_string()
-        })
-    }
-}
+impl ApiError for TakeNextImageError {}
 
 #[derive(Clone)]
 struct TakeNextState {
