@@ -1,4 +1,4 @@
-use sea_orm::{CursorTrait, DatabaseConnection, EntityTrait};
+use sea_orm::{CursorTrait, DbConn, EntityTrait};
 
 use crate::{
     domain::models::Image,
@@ -7,7 +7,7 @@ use crate::{
 
 #[derive(Clone)]
 pub struct PaginatedImagesFetcher {
-    db_conn: DatabaseConnection,
+    db_conn: DbConn,
 }
 
 pub struct ImagesPage {
@@ -16,7 +16,7 @@ pub struct ImagesPage {
 }
 
 impl PaginatedImagesFetcher {
-    pub fn new(db_conn: DatabaseConnection) -> Self {
+    pub fn new(db_conn: DbConn) -> Self {
         Self { db_conn }
     }
 
@@ -26,7 +26,7 @@ impl PaginatedImagesFetcher {
             Some(cursor) => pagination.after(cursor),
             None => &mut pagination,
         };
-        let images: Vec<images::Model> = pagination
+        let images: Vec<_> = pagination
             .first(count)
             .all(&self.db_conn)
             .await

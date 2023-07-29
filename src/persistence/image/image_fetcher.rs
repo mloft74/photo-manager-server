@@ -1,4 +1,4 @@
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
+use sea_orm::{ColumnTrait, DbConn, EntityTrait, QueryFilter};
 
 use crate::{
     domain::models::Image,
@@ -7,11 +7,11 @@ use crate::{
 
 #[derive(Clone)]
 pub struct ImageFetcher {
-    db_conn: DatabaseConnection,
+    db_conn: DbConn,
 }
 
 impl ImageFetcher {
-    pub fn new(db_conn: DatabaseConnection) -> Self {
+    pub fn new(db_conn: DbConn) -> Self {
         Self { db_conn }
     }
 

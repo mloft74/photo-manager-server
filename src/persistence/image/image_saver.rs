@@ -1,4 +1,4 @@
-use sea_orm::{DatabaseConnection, EntityTrait};
+use sea_orm::{DbConn, EntityTrait};
 
 use crate::{
     domain::models::Image,
@@ -10,11 +10,11 @@ use crate::{
 
 #[derive(Clone)]
 pub struct ImageSaver {
-    db_conn: DatabaseConnection,
+    db_conn: DbConn,
 }
 
 impl ImageSaver {
-    pub fn new(db_conn: DatabaseConnection) -> Self {
+    pub fn new(db_conn: DbConn) -> Self {
         Self { db_conn }
     }
 

@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use sea_orm::{
-    ActiveModelTrait, ActiveValue, ColumnTrait, DatabaseConnection, DbErr, EntityTrait,
-    QueryFilter, TransactionTrait,
+    ActiveModelTrait, ActiveValue, ColumnTrait, DbConn, DbErr, EntityTrait, QueryFilter,
+    TransactionTrait,
 };
 
 use crate::{
@@ -15,11 +15,11 @@ use crate::{
 
 #[derive(Clone)]
 pub struct ImageCanonUpdater {
-    db_conn: DatabaseConnection,
+    db_conn: DbConn,
 }
 
 impl ImageCanonUpdater {
-    pub fn new(db_conn: DatabaseConnection) -> Self {
+    pub fn new(db_conn: DbConn) -> Self {
         Self { db_conn }
     }
 

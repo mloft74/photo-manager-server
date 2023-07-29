@@ -1,6 +1,6 @@
 use std::env;
 
-use sea_orm::{Database, DatabaseConnection};
+use sea_orm::{Database, DbConn};
 use sea_orm_migration::MigratorTrait;
 
 use crate::persistence::{migrator::Migrator, persistence_manager::PersistenceManager};
@@ -15,7 +15,7 @@ pub async fn init_persistence() -> PersistenceManager {
     PersistenceManager::new(db_conn)
 }
 
-async fn connect() -> DatabaseConnection {
+async fn connect() -> DbConn {
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let db_conn = Database::connect(db_url)
         .await

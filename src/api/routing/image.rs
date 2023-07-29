@@ -8,6 +8,7 @@ use crate::{
 
 mod get;
 mod paginated;
+mod rename;
 mod take_next;
 mod update_canon;
 mod upload;
@@ -37,6 +38,9 @@ pub fn make_image_router(
             ))
             .merge(paginated::make_paginated_router(
                 persistence_manager.make_paginated_images_fetcher(),
+            ))
+            .merge(rename::make_rename_router(
+                persistence_manager.make_image_renamer(),
             )),
     )
 }

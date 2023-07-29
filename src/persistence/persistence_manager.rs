@@ -1,17 +1,17 @@
-use sea_orm::DatabaseConnection;
+use sea_orm::DbConn;
 
 use crate::persistence::image::{
     image_canon_fetcher::ImageCanonFetcher, image_canon_updater::ImageCanonUpdater,
-    image_fetcher::ImageFetcher, image_saver::ImageSaver,
+    image_fetcher::ImageFetcher, image_renamer::ImageRenamer, image_saver::ImageSaver,
     paginated_images_fetcher::PaginatedImagesFetcher,
 };
 
 pub struct PersistenceManager {
-    db_conn: DatabaseConnection,
+    db_conn: DbConn,
 }
 
 impl PersistenceManager {
-    pub fn new(db_conn: DatabaseConnection) -> Self {
+    pub fn new(db_conn: DbConn) -> Self {
         Self { db_conn }
     }
 
@@ -33,5 +33,9 @@ impl PersistenceManager {
 
     pub fn make_paginated_images_fetcher(&self) -> PaginatedImagesFetcher {
         PaginatedImagesFetcher::new(self.db_conn.clone())
+    }
+
+    pub fn make_image_renamer(&self) -> ImageRenamer {
+        ImageRenamer::new(self.db_conn.clone())
     }
 }
