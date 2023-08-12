@@ -3,7 +3,7 @@ use serde::Serialize;
 
 use crate::{
     domain::{models::Image, screen_saver_manager::ScreenSaverManager},
-    persistence::persistence_manager::PersistenceManager,
+    persistence::PersistenceManager,
 };
 
 mod delete;

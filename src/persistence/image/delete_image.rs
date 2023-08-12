@@ -5,7 +5,7 @@ use crate::{
     domain::actions::image::DeleteImage,
     persistence::{
         entities::{images, prelude::Images},
-        persistence_manager::PersistenceManager,
+        PersistenceManager,
     },
 };
 

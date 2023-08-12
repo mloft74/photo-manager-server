@@ -3,7 +3,7 @@ use std::env;
 use sea_orm::{Database, DbConn};
 use sea_orm_migration::MigratorTrait;
 
-use crate::persistence::{migrator::Migrator, persistence_manager::PersistenceManager};
+use crate::persistence::migrator::Migrator;
 
 mod entities;
 pub mod image;
@@ -26,4 +26,15 @@ async fn connect() -> DbConn {
         .expect("Database should be migratable from startup");
 
     db_conn
+}
+
+#[derive(Clone)]
+pub struct PersistenceManager {
+    pub db_conn: DbConn,
+}
+
+impl PersistenceManager {
+    pub fn new(db_conn: DbConn) -> Self {
+        Self { db_conn }
+    }
 }

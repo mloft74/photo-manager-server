@@ -5,7 +5,7 @@ use crate::{
     domain::actions::image::RenameImage,
     persistence::{
         entities::{images, prelude::Images},
-        persistence_manager::PersistenceManager,
+        PersistenceManager,
     },
 };
 

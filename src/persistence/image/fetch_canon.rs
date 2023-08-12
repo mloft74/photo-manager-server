@@ -3,7 +3,7 @@ use sea_orm::EntityTrait;
 
 use crate::{
     domain::{actions::image::FetchCanon, models::Image},
-    persistence::{entities::prelude::Images, persistence_manager::PersistenceManager},
+    persistence::{entities::prelude::Images, PersistenceManager},
 };
 
 #[async_trait]

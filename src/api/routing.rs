@@ -2,10 +2,7 @@ use axum::Router;
 use serde::Serialize;
 use serde_json::json;
 
-use crate::{
-    domain::screen_saver_manager::ScreenSaverManager,
-    persistence::persistence_manager::PersistenceManager,
-};
+use crate::{domain::screen_saver_manager::ScreenSaverManager, persistence::PersistenceManager};
 
 mod image;
 mod ping;

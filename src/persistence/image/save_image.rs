@@ -6,7 +6,7 @@ use crate::{
     persistence::{
         entities::{images, prelude::Images},
         image::active_model_for_insert_from,
-        persistence_manager::PersistenceManager,
+        PersistenceManager,
     },
 };
 

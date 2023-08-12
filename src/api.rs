@@ -1,9 +1,6 @@
 use axum::{middleware, Router};
 
-use crate::{
-    domain::screen_saver_manager::ScreenSaverManager,
-    persistence::persistence_manager::PersistenceManager,
-};
+use crate::{domain::screen_saver_manager::ScreenSaverManager, persistence::PersistenceManager};
 
 mod canon;
 mod image_dimensions;
