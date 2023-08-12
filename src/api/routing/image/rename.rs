@@ -9,9 +9,9 @@ use crate::{
 };
 
 pub fn make_rename_router(
-    rename_image_op: impl 'static + Clone + Send + Sync + RenameImage,
+    ri: impl 'static + Clone + Send + Sync + RenameImage,
 ) -> Router {
-    Router::new().route("/rename", post(|body| rename_image(body, rename_image_op)))
+    Router::new().route("/rename", post(|body| rename_image(body, ri)))
 }
 
 #[derive(Serialize)]
@@ -30,7 +30,7 @@ struct RenameInput {
 
 async fn rename_image(
     Json(input): Json<RenameInput>,
-    rename_image_op: impl RenameImage,
+    ri: impl RenameImage,
 ) -> Result<(), (StatusCode, String)> {
     rename_fs(&input).await.map_err(|e| {
         (
@@ -39,7 +39,7 @@ async fn rename_image(
         )
     })?;
 
-    rename_image_op
+    ri
         .rename_image(&input.old_name, &input.new_name)
         .await
         .map_err(|e| {

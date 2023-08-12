@@ -9,11 +9,11 @@ use crate::{
 };
 
 pub fn make_delete_router(
-    delete_image_op: impl 'static + Clone + Send + Sync + DeleteImage,
+    di: impl 'static + Clone + Send + Sync + DeleteImage,
 ) -> Router {
     Router::new().route(
         "/delete",
-        post(move |body| delete_image(body, delete_image_op)),
+        post(move |body| delete_image(body, di)),
     )
 }
 
@@ -32,7 +32,7 @@ impl ApiError for DeleteImageError {}
 
 async fn delete_image(
     Json(input): Json<DeleteInput>,
-    delete_image_op: impl DeleteImage,
+    di: impl DeleteImage,
 ) -> Result<(), (StatusCode, String)> {
     delete_fs(&input).await.map_err(|e| {
         (
@@ -41,7 +41,7 @@ async fn delete_image(
         )
     })?;
 
-    delete_image_op
+    di
         .delete_image(&input.file_name)
         .await
         .map_err(|e| {

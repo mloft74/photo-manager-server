@@ -9,11 +9,11 @@ use crate::{
 
 pub fn make_take_next_router(
     mngr: ScreenSaverManager,
-    fetch_canon_op: impl 'static + Clone + Send + Sync + FetchCanon,
+    fc: impl 'static + Clone + Send + Sync + FetchCanon,
 ) -> Router {
     Router::new()
         // Using post as this route mutates state
-        .route("/take_next", post(|| take_next(mngr, fetch_canon_op)))
+        .route("/take_next", post(|| take_next(mngr, fc)))
 }
 
 #[derive(Serialize)]
@@ -26,13 +26,13 @@ impl ApiError for TakeNextImageError {}
 
 async fn take_next(
     mut mngr: ScreenSaverManager,
-    fetch_canon_op: impl FetchCanon,
+    fc: impl FetchCanon,
 ) -> Result<Json<ImageResponse>, (StatusCode, String)> {
     let image = mngr.take_next();
     if let Some(image) = image {
         Ok(Json(image.into()))
     } else {
-        let images = fetch_canon_op.fetch_canon().await.map_err(|e| {
+        let images = fc.fetch_canon().await.map_err(|e| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 TakeNextImageError::FailedToFetchCanon(e).to_json_string(),

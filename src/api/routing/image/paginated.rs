@@ -5,11 +5,11 @@ use serde::{Deserialize, Serialize};
 use crate::{api::routing::image::ImageResponse, domain::actions::image::FetchImagesPage};
 
 pub fn make_paginated_router(
-    fetch_images_page_op: impl 'static + Clone + Send + Sync + FetchImagesPage,
+    fip: impl 'static + Clone + Send + Sync + FetchImagesPage,
 ) -> Router {
     Router::new().route(
         "/paginated",
-        get(|query| get_images(query, fetch_images_page_op)),
+        get(|query| get_images(query, fip)),
     )
 }
 
@@ -27,9 +27,9 @@ struct ImagesPageResponse {
 
 async fn get_images(
     Query(input): Query<ImagesPageInput>,
-    fetch_images_page_op: impl FetchImagesPage,
+    fip: impl FetchImagesPage,
 ) -> Result<Json<ImagesPageResponse>, (StatusCode, String)> {
-    fetch_images_page_op
+    fip
         .fetch_images_page(input.count, input.after)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))
