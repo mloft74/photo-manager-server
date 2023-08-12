@@ -1,17 +1,17 @@
-use axum::{extract::State, routing::post, Json, Router};
+use axum::{routing::post, Json, Router};
 use hyper::StatusCode;
 use serde::{Deserialize, Serialize};
 use tokio::fs;
 
 use crate::{
     api::{routing::ApiError, IMAGES_DIR},
-    persistence::image::image_renamer::ImageRenamer,
+    domain::actions::image::RenameImage,
 };
 
-pub fn make_rename_router(renamer: ImageRenamer) -> Router {
-    Router::new()
-        .route("/rename", post(rename_image))
-        .with_state(renamer)
+pub fn make_rename_router(
+    rename_image_op: impl 'static + Clone + Send + Sync + RenameImage,
+) -> Router {
+    Router::new().route("/rename", post(|body| rename_image(body, rename_image_op)))
 }
 
 #[derive(Serialize)]
@@ -29,8 +29,8 @@ struct RenameInput {
 }
 
 async fn rename_image(
-    state: State<ImageRenamer>,
     Json(input): Json<RenameInput>,
+    rename_image_op: impl RenameImage,
 ) -> Result<(), (StatusCode, String)> {
     rename_fs(&input).await.map_err(|e| {
         (
@@ -39,7 +39,7 @@ async fn rename_image(
         )
     })?;
 
-    state
+    rename_image_op
         .rename_image(&input.old_name, &input.new_name)
         .await
         .map_err(|e| {

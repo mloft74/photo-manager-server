@@ -29,3 +29,9 @@ pub trait UpdateCanon {
 pub trait FetchImage {
     async fn fetch_image(&self, file_name: &str) -> Result<Option<Image>, String>;
 }
+
+#[async_trait]
+#[auto_impl(&)]
+pub trait RenameImage {
+    async fn rename_image(&self, old_name: &str, new_name: &str) -> Result<(), String>;
+}
