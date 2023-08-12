@@ -12,15 +12,12 @@ mod ping;
 
 pub fn make_api_router(
     persistence_manager: &PersistenceManager,
-    manager: ScreenSaverManager,
+    manager: &ScreenSaverManager,
 ) -> Router {
     Router::new().nest(
         "/api",
         Router::new()
-            .merge(image::make_image_router(
-                persistence_manager,
-                manager.clone(),
-            ))
+            .merge(image::make_image_router(persistence_manager, manager))
             .merge(ping::make_ping_router()),
     )
 }

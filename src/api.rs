@@ -24,7 +24,7 @@ pub async fn make_api_router(persistence_manager: &PersistenceManager) -> Router
 
     let image_server_router = image_server::create_image_server_router();
 
-    let demo_router = routing::make_api_router(persistence_manager, manager.clone());
+    let demo_router = routing::make_api_router(persistence_manager, &manager);
 
     Router::new()
         .merge(image_server_router)

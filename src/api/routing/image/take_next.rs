@@ -1,24 +1,19 @@
-use axum::{extract::State, routing::post, Json, Router};
+use axum::{routing::post, Json, Router};
 use hyper::StatusCode;
 use serde::Serialize;
 
 use crate::{
     api::routing::{image::ImageResponse, ApiError},
-    domain::screen_saver_manager::ScreenSaverManager,
-    persistence::image::image_canon_fetcher::ImageCanonFetcher,
+    domain::{actions::image::FetchCanon, screen_saver_manager::ScreenSaverManager},
 };
 
 pub fn make_take_next_router(
-    canon_fetcher: ImageCanonFetcher,
     manager: ScreenSaverManager,
+    fetch_canon_op: impl 'static + Clone + Send + Sync + FetchCanon,
 ) -> Router {
     Router::new()
         // Using post as this route mutates state
-        .route("/take_next", post(take_next))
-        .with_state(TakeNextState {
-            canon_fetcher,
-            manager,
-        })
+        .route("/take_next", post(|| take_next(manager, fetch_canon_op)))
 }
 
 #[derive(Serialize)]
@@ -29,28 +24,23 @@ enum TakeNextImageError {
 
 impl ApiError for TakeNextImageError {}
 
-#[derive(Clone)]
-struct TakeNextState {
-    canon_fetcher: ImageCanonFetcher,
-    manager: ScreenSaverManager,
-}
-
 async fn take_next(
-    mut state: State<TakeNextState>,
+    mut manager: ScreenSaverManager,
+    fetch_canon_op: impl FetchCanon,
 ) -> Result<Json<ImageResponse>, (StatusCode, String)> {
-    let image = state.manager.take_next();
+    let image = manager.take_next();
     if let Some(image) = image {
         Ok(Json(image.into()))
     } else {
-        let images = state.canon_fetcher.fetch_canon().await.map_err(|e| {
+        let images = fetch_canon_op.fetch_canon().await.map_err(|e| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 TakeNextImageError::FailedToFetchCanon(e).to_json_string(),
             )
         })?;
-        state.manager.replace(images.into_iter());
+        manager.replace(images.into_iter());
 
-        let image = state.manager.take_next();
+        let image = manager.take_next();
         if let Some(image) = image {
             Ok(Json(image.into()))
         } else {

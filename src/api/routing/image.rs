@@ -16,7 +16,7 @@ mod upload;
 
 pub fn make_image_router(
     persistence_manager: &PersistenceManager,
-    manager: ScreenSaverManager,
+    manager: &ScreenSaverManager,
 ) -> Router {
     Router::new().nest(
         "/image",
@@ -34,8 +34,8 @@ pub fn make_image_router(
                 manager.clone(),
             ))
             .merge(take_next::make_take_next_router(
-                persistence_manager.make_image_canon_fetcher(),
                 manager.clone(),
+                persistence_manager.clone(),
             ))
             .merge(paginated::make_paginated_router(
                 persistence_manager.make_paginated_images_fetcher(),

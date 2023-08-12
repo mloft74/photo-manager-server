@@ -1,8 +1,8 @@
 use sea_orm::DbConn;
 
 use crate::persistence::image::{
-    image_canon_fetcher::ImageCanonFetcher, image_canon_updater::ImageCanonUpdater,
-    image_fetcher::ImageFetcher, image_renamer::ImageRenamer, image_saver::ImageSaver,
+    image_canon_updater::ImageCanonUpdater, image_fetcher::ImageFetcher,
+    image_renamer::ImageRenamer, image_saver::ImageSaver,
     paginated_images_fetcher::PaginatedImagesFetcher,
 };
 
@@ -22,10 +22,6 @@ impl PersistenceManager {
 
     pub fn make_image_saver(&self) -> ImageSaver {
         ImageSaver::new(self.db_conn.clone())
-    }
-
-    pub fn make_image_canon_fetcher(&self) -> ImageCanonFetcher {
-        ImageCanonFetcher::new(self.db_conn.clone())
     }
 
     pub fn make_image_canon_updater(&self) -> ImageCanonUpdater {
