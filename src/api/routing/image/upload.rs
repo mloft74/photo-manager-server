@@ -21,19 +21,21 @@ use crate::{
         routing::ApiError,
         IMAGES_DIR,
     },
-    domain::{actions::image::FetchImage, models::Image, screen_saver_manager::ScreenSaverManager},
-    persistence::image::image_saver::ImageSaver,
+    domain::{
+        actions::image::{FetchImage, SaveImage},
+        models::Image,
+        screen_saver_manager::ScreenSaverManager,
+    },
 };
 
 pub fn make_upload_router(
-    fetch_image_op: impl 'static + Clone + Send + Sync + FetchImage,
-    image_saver: ImageSaver,
-    manager: ScreenSaverManager,
+    image_mngr: impl 'static + Clone + Send + Sync + FetchImage + SaveImage,
+    ss_mngr: ScreenSaverManager,
 ) -> Router {
     Router::new()
         .route(
             "/upload",
-            post(|body| upload_image(body, fetch_image_op, image_saver, manager)),
+            post(|body| upload_image(body, image_mngr, ss_mngr)),
         )
         .layer(DefaultBodyLimit::disable())
         .layer(RequestBodyLimitLayer::new(
@@ -54,9 +56,8 @@ impl ApiError for UploadImageError {}
 // Handler that accepts a multipart form upload and streams each field to a file.
 async fn upload_image(
     mut multipart: Multipart,
-    fetch_image_op: impl FetchImage,
-    saver: ImageSaver,
-    mut manager: ScreenSaverManager,
+    image_mngr: impl FetchImage + SaveImage,
+    mut ss_mngr: ScreenSaverManager,
 ) -> Result<(), (StatusCode, String)> {
     let (file_name, file_field) = validate_field(multipart.next_field().await).map_err(|e| {
         (
@@ -65,7 +66,7 @@ async fn upload_image(
         )
     })?;
 
-    let existing_image = fetch_image_op.fetch_image(&file_name).await.map_err(|e| {
+    let existing_image = image_mngr.fetch_image(&file_name).await.map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             UploadImageError::GeneralError(e).to_json_string(),
@@ -98,14 +99,14 @@ async fn upload_image(
         height: image_height,
     };
 
-    saver.save_image(&image).await.map_err(|e| {
+    image_mngr.save_image(&image).await.map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             UploadImageError::GeneralError(e).to_json_string(),
         )
     })?;
 
-    manager.insert(image);
+    ss_mngr.insert(image);
 
     Ok(())
 }

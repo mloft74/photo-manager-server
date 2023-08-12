@@ -13,15 +13,15 @@ mod routing;
 
 const IMAGES_DIR: &str = "/var/lib/photo_manager_server/images";
 
-pub async fn make_api_router(persistence_manager: &PersistenceManager) -> Router {
-    let mut manager = ScreenSaverManager::new();
-    canon::update_canon(&persistence_manager, &mut manager)
+pub async fn make_api_router(persistence_mngr: &PersistenceManager) -> Router {
+    let mut ss_mngr = ScreenSaverManager::new();
+    canon::update_canon(&persistence_mngr, &mut ss_mngr)
         .await
         .expect("Canon should be updatable from startup");
 
     let image_server_router = image_server::create_image_server_router();
 
-    let demo_router = routing::make_api_router(persistence_manager, &manager);
+    let demo_router = routing::make_api_router(persistence_mngr, &ss_mngr);
 
     Router::new()
         .merge(image_server_router)

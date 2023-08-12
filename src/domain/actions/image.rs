@@ -42,3 +42,9 @@ pub trait FetchImagesPage {
     async fn fetch_images_page(&self, count: u64, after: Option<i32>)
         -> Result<ImagesPage, String>;
 }
+
+#[async_trait]
+#[auto_impl(&)]
+pub trait SaveImage {
+    async fn save_image(&self, image: &Image) -> Result<(), String>;
+}

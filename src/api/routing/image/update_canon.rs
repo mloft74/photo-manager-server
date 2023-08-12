@@ -11,21 +11,18 @@ use crate::{
 
 pub fn make_update_canon_router(
     canon_updater: impl 'static + Clone + Send + Sync + UpdateCanon,
-    manager: ScreenSaverManager,
+    mngr: ScreenSaverManager,
 ) -> Router {
-    Router::new().route(
-        "/update_canon",
-        post(|| update_canon(canon_updater, manager)),
-    )
+    Router::new().route("/update_canon", post(|| update_canon(canon_updater, mngr)))
 }
 
 impl ApiError for UpdateCanonError {}
 
 async fn update_canon(
     update_canon_op: impl UpdateCanon,
-    mut manager: ScreenSaverManager,
+    mut mngr: ScreenSaverManager,
 ) -> Result<(), (StatusCode, String)> {
-    canon::update_canon(&update_canon_op, &mut manager)
+    canon::update_canon(&update_canon_op, &mut mngr)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_json_string()))?;
 

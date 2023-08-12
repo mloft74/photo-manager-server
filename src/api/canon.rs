@@ -65,7 +65,7 @@ impl From<FetchCanonError> for UpdateCanonError {
 
 pub async fn update_canon(
     update_canon_op: &impl UpdateCanon,
-    manager: &mut ScreenSaverManager,
+    mngr: &mut ScreenSaverManager,
 ) -> Result<(), UpdateCanonError> {
     let images = fetch_canon().await?;
     update_canon_op
@@ -73,7 +73,7 @@ pub async fn update_canon(
         .await
         .map_err(UpdateCanonError::FailedToUpdateCanon)?;
 
-    manager.replace(images.into_iter());
+    mngr.replace(images.into_iter());
 
     Ok(())
 }

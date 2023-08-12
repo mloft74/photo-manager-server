@@ -15,31 +15,28 @@ mod update_canon;
 mod upload;
 
 pub fn make_image_router(
-    persistence_manager: &PersistenceManager,
-    manager: &ScreenSaverManager,
+    persistence_mngr: &PersistenceManager,
+    ss_mngr: &ScreenSaverManager,
 ) -> Router {
     Router::new().nest(
         "/image",
         Router::new()
             .merge(upload::make_upload_router(
-                persistence_manager.clone(),
-                persistence_manager.make_image_saver(),
-                manager.clone(),
+                persistence_mngr.clone(),
+                ss_mngr.clone(),
             ))
-            .merge(get::make_get_router(persistence_manager.clone()))
+            .merge(get::make_get_router(persistence_mngr.clone()))
             .merge(update_canon::make_update_canon_router(
-                persistence_manager.clone(),
-                manager.clone(),
+                persistence_mngr.clone(),
+                ss_mngr.clone(),
             ))
             .merge(take_next::make_take_next_router(
-                manager.clone(),
-                persistence_manager.clone(),
+                ss_mngr.clone(),
+                persistence_mngr.clone(),
             ))
-            .merge(paginated::make_paginated_router(
-                persistence_manager.clone(),
-            ))
-            .merge(rename::make_rename_router(persistence_manager.clone()))
-            .merge(delete::make_delete_router(persistence_manager.clone())),
+            .merge(paginated::make_paginated_router(persistence_mngr.clone()))
+            .merge(rename::make_rename_router(persistence_mngr.clone()))
+            .merge(delete::make_delete_router(persistence_mngr.clone())),
     )
 }
 

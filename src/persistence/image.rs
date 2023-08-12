@@ -6,8 +6,8 @@ pub mod delete_image;
 pub mod fetch_canon;
 pub mod fetch_image;
 pub mod fetch_images_page;
-pub mod image_saver;
 pub mod rename_image;
+pub mod save_image;
 pub mod update_canon;
 
 fn active_model_for_insert_from(image: &Image) -> images::ActiveModel {
