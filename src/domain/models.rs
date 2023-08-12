@@ -3,3 +3,8 @@ pub struct Image {
     pub width: u32,
     pub height: u32,
 }
+
+pub struct ImagesPage {
+    pub images: Vec<Image>,
+    pub cursor: Option<i32>,
+}

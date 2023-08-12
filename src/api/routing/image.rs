@@ -36,7 +36,7 @@ pub fn make_image_router(
                 persistence_manager.clone(),
             ))
             .merge(paginated::make_paginated_router(
-                persistence_manager.make_paginated_images_fetcher(),
+                persistence_manager.clone(),
             ))
             .merge(rename::make_rename_router(persistence_manager.clone()))
             .merge(delete::make_delete_router(persistence_manager.clone())),

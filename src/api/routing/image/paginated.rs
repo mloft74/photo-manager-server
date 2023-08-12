@@ -1,20 +1,16 @@
-use axum::{
-    extract::{Query, State},
-    routing::get,
-    Json, Router,
-};
+use axum::{extract::Query, routing::get, Json, Router};
 use hyper::StatusCode;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    api::routing::image::ImageResponse,
-    persistence::image::paginated_images_fetcher::PaginatedImagesFetcher,
-};
+use crate::{api::routing::image::ImageResponse, domain::actions::image::FetchImagesPage};
 
-pub fn make_paginated_router(images_fetcher: PaginatedImagesFetcher) -> Router {
-    Router::new()
-        .route("/paginated", get(get_images))
-        .with_state(images_fetcher)
+pub fn make_paginated_router(
+    fetch_images_page_op: impl 'static + Clone + Send + Sync + FetchImagesPage,
+) -> Router {
+    Router::new().route(
+        "/paginated",
+        get(|query| get_images(query, fetch_images_page_op)),
+    )
 }
 
 #[derive(Deserialize)]
@@ -30,11 +26,11 @@ struct ImagesPageResponse {
 }
 
 async fn get_images(
-    state: State<PaginatedImagesFetcher>,
     Query(input): Query<ImagesPageInput>,
+    fetch_images_page_op: impl FetchImagesPage,
 ) -> Result<Json<ImagesPageResponse>, (StatusCode, String)> {
-    state
-        .fetch_images(input.count, input.after)
+    fetch_images_page_op
+        .fetch_images_page(input.count, input.after)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))
         .map(|v| {
