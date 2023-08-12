@@ -2,12 +2,13 @@ use sea_orm::DbConn;
 
 use crate::persistence::image::{
     image_canon_fetcher::ImageCanonFetcher, image_canon_updater::ImageCanonUpdater,
-    image_deleter::ImageDeleter, image_fetcher::ImageFetcher, image_renamer::ImageRenamer,
-    image_saver::ImageSaver, paginated_images_fetcher::PaginatedImagesFetcher,
+    image_fetcher::ImageFetcher, image_renamer::ImageRenamer, image_saver::ImageSaver,
+    paginated_images_fetcher::PaginatedImagesFetcher,
 };
 
+#[derive(Clone)]
 pub struct PersistenceManager {
-    db_conn: DbConn,
+    pub(in crate::persistence) db_conn: DbConn,
 }
 
 impl PersistenceManager {
@@ -37,9 +38,5 @@ impl PersistenceManager {
 
     pub fn make_image_renamer(&self) -> ImageRenamer {
         ImageRenamer::new(self.db_conn.clone())
-    }
-
-    pub fn make_image_deleter(&self) -> ImageDeleter {
-        ImageDeleter::new(self.db_conn.clone())
     }
 }

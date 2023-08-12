@@ -1,17 +1,20 @@
-use axum::{extract::State, routing::post, Json, Router};
+use axum::{routing::post, Json, Router};
 use hyper::StatusCode;
 use serde::{Deserialize, Serialize};
 use tokio::fs;
 
 use crate::{
     api::{routing::ApiError, IMAGES_DIR},
-    persistence::image::image_deleter::ImageDeleter,
+    domain::actions::image::DeleteImage,
 };
 
-pub fn make_delete_router(image_deleter: ImageDeleter) -> Router {
-    Router::new()
-        .route("/delete", post(delete_image))
-        .with_state(image_deleter)
+pub fn make_delete_router(
+    delete_image_op: impl 'static + Clone + Send + Sync + DeleteImage,
+) -> Router {
+    Router::new().route(
+        "/delete",
+        post(move |body| delete_image(body, delete_image_op)),
+    )
 }
 
 #[derive(Deserialize)]
@@ -28,8 +31,8 @@ enum DeleteImageError {
 impl ApiError for DeleteImageError {}
 
 async fn delete_image(
-    state: State<ImageDeleter>,
     Json(input): Json<DeleteInput>,
+    delete_image_op: impl DeleteImage,
 ) -> Result<(), (StatusCode, String)> {
     delete_fs(&input).await.map_err(|e| {
         (
@@ -38,12 +41,15 @@ async fn delete_image(
         )
     })?;
 
-    state.delete_image(&input.file_name).await.map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            DeleteImageError::Persistence(e).to_json_string(),
-        )
-    })?;
+    delete_image_op
+        .delete_image(&input.file_name)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                DeleteImageError::Persistence(e).to_json_string(),
+            )
+        })?;
 
     Ok(())
 }
