@@ -3,7 +3,7 @@ use std::io;
 use axum::{
     extract::{
         multipart::{Field, MultipartError},
-        DefaultBodyLimit, Multipart, State,
+        DefaultBodyLimit, Multipart,
     },
     routing::post,
     BoxError, Router,
@@ -21,33 +21,24 @@ use crate::{
         routing::ApiError,
         IMAGES_DIR,
     },
-    domain::{models::Image, screen_saver_manager::ScreenSaverManager},
-    persistence::image::{image_fetcher::ImageFetcher, image_saver::ImageSaver},
+    domain::{actions::image::FetchImage, models::Image, screen_saver_manager::ScreenSaverManager},
+    persistence::image::image_saver::ImageSaver,
 };
 
 pub fn make_upload_router(
-    image_fetcher: ImageFetcher,
+    fetch_image_op: impl 'static + Clone + Send + Sync + FetchImage,
     image_saver: ImageSaver,
     manager: ScreenSaverManager,
 ) -> Router {
     Router::new()
-        .route("/upload", post(upload_image))
+        .route(
+            "/upload",
+            post(|body| upload_image(body, fetch_image_op, image_saver, manager)),
+        )
         .layer(DefaultBodyLimit::disable())
         .layer(RequestBodyLimitLayer::new(
             250 * 1024 * 1024, /* 250mb */
         ))
-        .with_state(UploadState {
-            fetcher: image_fetcher,
-            saver: image_saver,
-            manager,
-        })
-}
-
-#[derive(Clone)]
-struct UploadState {
-    fetcher: ImageFetcher,
-    saver: ImageSaver,
-    manager: ScreenSaverManager,
 }
 
 #[derive(Serialize)]
@@ -62,15 +53,10 @@ impl ApiError for UploadImageError {}
 
 // Handler that accepts a multipart form upload and streams each field to a file.
 async fn upload_image(
-    state: State<UploadState>,
-    multipart: Multipart,
-) -> Result<(), (StatusCode, String)> {
-    upload_image_inner(state, multipart).await
-}
-
-async fn upload_image_inner(
-    mut state: State<UploadState>,
     mut multipart: Multipart,
+    fetch_image_op: impl FetchImage,
+    saver: ImageSaver,
+    mut manager: ScreenSaverManager,
 ) -> Result<(), (StatusCode, String)> {
     let (file_name, file_field) = validate_field(multipart.next_field().await).map_err(|e| {
         (
@@ -79,7 +65,7 @@ async fn upload_image_inner(
         )
     })?;
 
-    let existing_image = state.fetcher.fetch_image(&file_name).await.map_err(|e| {
+    let existing_image = fetch_image_op.fetch_image(&file_name).await.map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             UploadImageError::GeneralError(e).to_json_string(),
@@ -112,14 +98,14 @@ async fn upload_image_inner(
         height: image_height,
     };
 
-    state.saver.save_image(&image).await.map_err(|e| {
+    saver.save_image(&image).await.map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             UploadImageError::GeneralError(e).to_json_string(),
         )
     })?;
 
-    state.manager.insert(image);
+    manager.insert(image);
 
     Ok(())
 }

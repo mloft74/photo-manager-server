@@ -1,7 +1,7 @@
 use sea_orm::DbConn;
 
 use crate::persistence::image::{
-    image_fetcher::ImageFetcher, image_renamer::ImageRenamer, image_saver::ImageSaver,
+    image_renamer::ImageRenamer, image_saver::ImageSaver,
     paginated_images_fetcher::PaginatedImagesFetcher,
 };
 
@@ -13,10 +13,6 @@ pub struct PersistenceManager {
 impl PersistenceManager {
     pub fn new(db_conn: DbConn) -> Self {
         Self { db_conn }
-    }
-
-    pub fn make_image_fetcher(&self) -> ImageFetcher {
-        ImageFetcher::new(self.db_conn.clone())
     }
 
     pub fn make_image_saver(&self) -> ImageSaver {

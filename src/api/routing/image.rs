@@ -22,13 +22,11 @@ pub fn make_image_router(
         "/image",
         Router::new()
             .merge(upload::make_upload_router(
-                persistence_manager.make_image_fetcher(),
+                persistence_manager.clone(),
                 persistence_manager.make_image_saver(),
                 manager.clone(),
             ))
-            .merge(get::make_get_router(
-                persistence_manager.make_image_fetcher(),
-            ))
+            .merge(get::make_get_router(persistence_manager.clone()))
             .merge(update_canon::make_update_canon_router(
                 persistence_manager.clone(),
                 manager.clone(),

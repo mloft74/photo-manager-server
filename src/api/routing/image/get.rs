@@ -1,17 +1,11 @@
-use axum::{
-    extract::{Query, State},
-    routing::get,
-    Json, Router,
-};
+use axum::{extract::Query, routing::get, Json, Router};
 use hyper::StatusCode;
 use serde::Deserialize;
 
-use crate::{api::routing::image::ImageResponse, persistence::image::image_fetcher::ImageFetcher};
+use crate::{api::routing::image::ImageResponse, domain::actions::image::FetchImage};
 
-pub fn make_get_router(image_fetcher: ImageFetcher) -> Router {
-    Router::new()
-        .route("/get", get(get_image))
-        .with_state(image_fetcher)
+pub fn make_get_router(fetch_image_op: impl 'static + Clone + Send + Sync + FetchImage) -> Router {
+    Router::new().route("/get", get(|query| get_image(query, fetch_image_op)))
 }
 
 #[derive(Deserialize)]
@@ -20,11 +14,11 @@ struct FindImage {
 }
 
 async fn get_image(
-    state: State<ImageFetcher>,
     Query(find_image): Query<FindImage>,
+    fetch_image_op: impl FetchImage,
 ) -> Result<Json<ImageResponse>, (StatusCode, String)> {
     let file_name = &find_image.file_name;
-    let image = state
+    let image = fetch_image_op
         .fetch_image(file_name)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?

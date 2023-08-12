@@ -4,7 +4,7 @@ use crate::{domain::models::Image, persistence::entities::images};
 
 pub mod delete_image;
 pub mod fetch_canon;
-pub mod image_fetcher;
+pub mod fetch_image;
 pub mod image_renamer;
 pub mod image_saver;
 pub mod paginated_images_fetcher;

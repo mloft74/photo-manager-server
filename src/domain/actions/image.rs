@@ -23,3 +23,9 @@ pub trait UpdateCanon {
         canon: T,
     ) -> Result<(), String>;
 }
+
+#[async_trait]
+#[auto_impl(&)]
+pub trait FetchImage {
+    async fn fetch_image(&self, file_name: &str) -> Result<Option<Image>, String>;
+}
