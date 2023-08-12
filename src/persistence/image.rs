@@ -4,11 +4,11 @@ use crate::{domain::models::Image, persistence::entities::images};
 
 pub mod delete_image;
 pub mod fetch_canon;
-pub mod image_canon_updater;
 pub mod image_fetcher;
 pub mod image_renamer;
 pub mod image_saver;
 pub mod paginated_images_fetcher;
+pub mod update_canon;
 
 fn active_model_for_insert_from(image: &Image) -> images::ActiveModel {
     images::ActiveModel {

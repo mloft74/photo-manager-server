@@ -30,7 +30,7 @@ pub fn make_image_router(
                 persistence_manager.make_image_fetcher(),
             ))
             .merge(update_canon::make_update_canon_router(
-                persistence_manager.make_image_canon_updater(),
+                persistence_manager.clone(),
                 manager.clone(),
             ))
             .merge(take_next::make_take_next_router(

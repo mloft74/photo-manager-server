@@ -15,12 +15,9 @@ const IMAGES_DIR: &str = "/var/lib/photo_manager_server/images";
 
 pub async fn make_api_router(persistence_manager: &PersistenceManager) -> Router {
     let mut manager = ScreenSaverManager::new();
-    canon::update_canon(
-        &persistence_manager.make_image_canon_updater(),
-        &mut manager,
-    )
-    .await
-    .expect("Canon should be updatable from startup");
+    canon::update_canon(&persistence_manager, &mut manager)
+        .await
+        .expect("Canon should be updatable from startup");
 
     let image_server_router = image_server::create_image_server_router();
 

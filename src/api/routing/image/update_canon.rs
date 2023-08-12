@@ -1,4 +1,4 @@
-use axum::{extract::State, routing::post, Router};
+use axum::{routing::post, Router};
 use hyper::StatusCode;
 
 use crate::{
@@ -6,36 +6,26 @@ use crate::{
         canon::{self, UpdateCanonError},
         routing::ApiError,
     },
-    domain::screen_saver_manager::ScreenSaverManager,
-    persistence::image::image_canon_updater::ImageCanonUpdater,
+    domain::{actions::image::UpdateCanon, screen_saver_manager::ScreenSaverManager},
 };
 
 pub fn make_update_canon_router(
-    canon_updater: ImageCanonUpdater,
+    canon_updater: impl 'static + Clone + Send + Sync + UpdateCanon,
     manager: ScreenSaverManager,
 ) -> Router {
-    Router::new()
-        .route("/update_canon", post(update_canon))
-        .with_state(UpdateCanonState {
-            canon_updater,
-            manager,
-        })
-}
-
-#[derive(Clone)]
-struct UpdateCanonState {
-    canon_updater: ImageCanonUpdater,
-    manager: ScreenSaverManager,
+    Router::new().route(
+        "/update_canon",
+        post(|| update_canon(canon_updater, manager)),
+    )
 }
 
 impl ApiError for UpdateCanonError {}
 
-async fn update_canon(state: State<UpdateCanonState>) -> Result<(), (StatusCode, String)> {
-    let UpdateCanonState {
-        canon_updater,
-        mut manager,
-    } = state.0;
-    canon::update_canon(&canon_updater, &mut manager)
+async fn update_canon(
+    update_canon_op: impl UpdateCanon,
+    mut manager: ScreenSaverManager,
+) -> Result<(), (StatusCode, String)> {
+    canon::update_canon(&update_canon_op, &mut manager)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_json_string()))?;
 
