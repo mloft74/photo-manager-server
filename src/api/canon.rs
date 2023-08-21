@@ -16,7 +16,10 @@ use crate::{
 pub enum FetchCanonError {
     IO(String),
     FileNameConversionError,
-    FetchDimensionsError(FetchImageDimensionsError),
+    FetchDimensionsError {
+        file_name: String,
+        err: FetchImageDimensionsError,
+    },
 }
 
 impl From<io::Error> for FetchCanonError {
@@ -25,9 +28,15 @@ impl From<io::Error> for FetchCanonError {
     }
 }
 
-impl From<FetchImageDimensionsError> for FetchCanonError {
-    fn from(value: FetchImageDimensionsError) -> Self {
-        Self::FetchDimensionsError(value)
+impl From<(String, FetchImageDimensionsError)> for FetchCanonError {
+    fn from((file_name, err): (String, FetchImageDimensionsError)) -> Self {
+        Self::FetchDimensionsError { file_name, err }
+    }
+}
+
+impl From<(FetchImageDimensionsError, String)> for FetchCanonError {
+    fn from((err, file_name): (FetchImageDimensionsError, String)) -> Self {
+        Self::FetchDimensionsError { file_name, err }
     }
 }
 
@@ -41,7 +50,8 @@ pub async fn fetch_canon() -> Result<Vec<Image>, FetchCanonError> {
             .to_str()
             .ok_or(FetchCanonError::FileNameConversionError)?
             .to_string();
-        let (width, height) = image_dimensions::fetch_image_dimensions(&file_name)?;
+        let (width, height) = image_dimensions::fetch_image_dimensions(&file_name)
+            .map_err(|e| (file_name.to_string(), e))?;
         images.push(Image {
             file_name,
             width,
