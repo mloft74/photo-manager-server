@@ -16,10 +16,13 @@ use crate::{
 pub enum FetchCanonError {
     IO(String),
     FileNameConversionError,
-    FetchDimensionsError {
-        file_name: String,
-        err: FetchImageDimensionsError,
-    },
+    FetchDimensionsErrors(Vec<FetchDimensionsError>),
+}
+
+#[derive(Debug, Serialize)]
+pub struct FetchDimensionsError {
+    file_name: String,
+    err: FetchImageDimensionsError,
 }
 
 impl From<io::Error> for FetchCanonError {
@@ -28,37 +31,49 @@ impl From<io::Error> for FetchCanonError {
     }
 }
 
-impl From<(String, FetchImageDimensionsError)> for FetchCanonError {
+impl From<(String, FetchImageDimensionsError)> for FetchDimensionsError {
     fn from((file_name, err): (String, FetchImageDimensionsError)) -> Self {
-        Self::FetchDimensionsError { file_name, err }
+        Self { file_name, err }
     }
 }
 
-impl From<(FetchImageDimensionsError, String)> for FetchCanonError {
+impl From<(FetchImageDimensionsError, String)> for FetchDimensionsError {
     fn from((err, file_name): (FetchImageDimensionsError, String)) -> Self {
-        Self::FetchDimensionsError { file_name, err }
+        Self { file_name, err }
     }
 }
 
 pub async fn fetch_canon() -> Result<Vec<Image>, FetchCanonError> {
     fs::create_dir_all(IMAGES_DIR).await?;
     let mut images_dir = fs::read_dir(IMAGES_DIR).await?;
-    let mut images = Vec::new();
+    let mut oks = Vec::new();
+    let mut errs = Vec::new();
     while let Some(entry) = images_dir.next_entry().await? {
         let file_name = entry
             .file_name()
             .to_str()
             .ok_or(FetchCanonError::FileNameConversionError)?
             .to_string();
-        let (width, height) = image_dimensions::fetch_image_dimensions(&file_name)
-            .map_err(|e| (file_name.to_string(), e))?;
-        images.push(Image {
-            file_name,
-            width,
-            height,
-        })
+        match fetch_dimensions(&file_name) {
+            Ok(v) => oks.push(v),
+            Err(e) => errs.push(e),
+        }
     }
-    Ok(images)
+    if errs.is_empty() {
+        Ok(oks)
+    } else {
+        Err(FetchCanonError::FetchDimensionsErrors(errs))
+    }
+}
+
+fn fetch_dimensions(file_name: &str) -> Result<Image, FetchDimensionsError> {
+    let (width, height) = image_dimensions::fetch_image_dimensions(file_name)
+        .map_err(|e| (file_name.to_string(), e))?;
+    Ok(Image {
+        file_name: file_name.to_string(),
+        width,
+        height,
+    })
 }
 
 #[derive(Debug, Serialize)]
