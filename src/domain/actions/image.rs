@@ -39,8 +39,17 @@ pub trait RenameImage {
 #[async_trait]
 #[auto_impl(&)]
 pub trait FetchImagesPage {
-    async fn fetch_images_page(&self, count: u64, after: Option<i32>)
-        -> Result<ImagesPage, String>;
+    async fn fetch_images_page(
+        &self,
+        count: u64,
+        after: Option<i32>,
+        order: PaginationOrder,
+    ) -> Result<ImagesPage, String>;
+}
+
+pub enum PaginationOrder {
+    NewToOld,
+    OldToNew,
 }
 
 #[async_trait]
