@@ -14,8 +14,8 @@ futures = "0.3.28"
 hyper = { version = "0.14.27", features = ["http1", "http2", "server", "runtime", "tcp"] }
 image = "0.24.6"
 rand = "0.8.5"
-sea-orm = { version = "0.11.3", features = ["sqlx-postgres", "runtime-tokio-rustls", "macros"] }
-sea-orm-migration = "0.11.3"
+sea-orm = { version = "0.12.2", features = ["sqlx-postgres", "runtime-tokio-rustls", "macros"] }
+sea-orm-migration = "0.12.2"
 serde = { version = "1.0.166", features = ["derive"] }
 serde_json = "1.0.99"
 tokio = { version = "1.28.2", features = ["macros", "rt-multi-thread"] }
