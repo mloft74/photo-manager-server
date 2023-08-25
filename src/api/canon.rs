@@ -1,4 +1,4 @@
-use tokio::{fs, io};
+use std::{fs, io};
 
 use serde::Serialize;
 
@@ -15,6 +15,7 @@ use crate::{
 #[derive(Debug, Serialize)]
 pub enum FetchCanonError {
     IO(String),
+    MultiIO(Vec<String>),
     FileNameConversionError,
     FetchDimensionsErrors(Vec<FetchDimensionsError>),
 }
@@ -43,12 +44,25 @@ impl From<(FetchImageDimensionsError, String)> for FetchDimensionsError {
     }
 }
 
-pub async fn fetch_canon() -> Result<Vec<Image>, FetchCanonError> {
-    fs::create_dir_all(IMAGES_DIR).await?;
-    let mut images_dir = fs::read_dir(IMAGES_DIR).await?;
+fn fetch_canon() -> Result<Vec<Image>, FetchCanonError> {
+    fs::create_dir_all(IMAGES_DIR)?;
+
+    let images_dir: Vec<_> = fs::read_dir(IMAGES_DIR)?.collect();
+    let (oks, errs): (Vec<_>, Vec<_>) = images_dir.into_iter().partition(Result::is_ok);
+    if !errs.is_empty() {
+        let errs: Vec<_> = errs
+            .into_iter()
+            .map(Result::unwrap_err)
+            .map(|e| e.to_string())
+            .collect();
+        return Err(FetchCanonError::MultiIO(errs));
+    }
+
+    let images_dir: Vec<_> = oks.into_iter().map(Result::unwrap).collect();
+
     let mut oks = Vec::new();
     let mut errs = Vec::new();
-    while let Some(entry) = images_dir.next_entry().await? {
+    for entry in images_dir {
         let file_name = entry
             .file_name()
             .to_str()
@@ -92,7 +106,7 @@ pub async fn update_canon(
     update_canon_op: &impl UpdateCanon,
     mngr: &mut ScreenSaverManager,
 ) -> Result<(), UpdateCanonError> {
-    let images = fetch_canon().await?;
+    let images = fetch_canon()?;
     update_canon_op
         .update_canon(images.iter())
         .await
