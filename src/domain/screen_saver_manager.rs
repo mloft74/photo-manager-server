@@ -44,30 +44,30 @@ impl ScreenSaverManager {
 
     /// Inserts an `Image` into a random location in the internal structure.
     pub fn insert(&mut self, value: Image) {
-        let mut images = self.acquire_lock();
+        let mut state = self.acquire_lock();
         // Prevents panic from generating against an empty range.
-        if images.images.is_empty() {
-            images.images.push(value)
+        if state.images.is_empty() {
+            state.images.push(value)
         } else {
-            let length = images.images.len();
+            let length = state.images.len();
             let mut rng = thread_rng();
             let index = rng.gen_range(0..length);
-            images.images.insert(index, value);
+            state.images.insert(index, value);
         }
     }
 
     /// Inserts the given `Image`s into random locations in the internal structure.
     pub fn _insert_many<T: Iterator<Item = Image>>(&mut self, values: T) {
-        let mut images = self.acquire_lock();
+        let mut state = self.acquire_lock();
         let mut rng = thread_rng();
         for value in values {
             // Prevents panic from generating against an empty range.
-            if images.images.is_empty() {
-                images.images.push(value);
+            if state.images.is_empty() {
+                state.images.push(value);
             } else {
-                let length = images.images.len();
+                let length = state.images.len();
                 let index = rng.gen_range(0..length);
-                images.images.insert(index, value);
+                state.images.insert(index, value);
             }
         }
     }
