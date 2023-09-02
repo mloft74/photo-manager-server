@@ -1,3 +1,4 @@
+#[derive(Clone)]
 pub struct Image {
     pub file_name: String,
     pub width: u32,
