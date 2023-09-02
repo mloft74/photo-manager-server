@@ -12,6 +12,7 @@ use crate::domain::models::Image;
 //    - By using an index indicator, I can see the entire list that is lined up and what has already been shown.
 //    - Could keep the previous iteration as well, just for more debug information.
 // 3. HashSet of indices. When resolving, this would be used to check if the index being resolved has already been resolved or not this iteration.
+//    - Could also use a Vec of enum variants: Resolved | Ready. Vec access is constant, and probably simpler than a HashSet.
 // 4. An iteration count. This is sent out and received when using current and resolve to ensure that what is being resolved is from the current iteration of the screensaver list.
 
 // TODO: rename
