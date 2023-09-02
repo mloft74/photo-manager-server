@@ -19,6 +19,7 @@ use crate::domain::models::Image;
 // 1. Vec of Images * index variable. Everything before the index is used, everything after isn't.
 // 2. When reshuffling, just check and see what the current one is. If the current one is the same as what the new current one will be, swap it randomly.
 // 3. When inserting, insert in the back, then just swap it in somewhere randomly. The order of what is next is not important.
+//    - I think a screensaver iteration count could fix this as well. You get what iteration an image is part of, and then you pass it it. If you are resolving the wrong iteration, nothing happens.
 
 // TODO: rename
 pub enum ResolveState {}
