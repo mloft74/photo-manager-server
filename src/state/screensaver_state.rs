@@ -5,6 +5,11 @@ use crate::domain::{
     screensaver::{ResolveState, Screensaver},
 };
 
+// Invariants:
+// - images and next_images always contain the same values.
+// - if images is not empty, current_index is Some.
+// - if current_index is Some, the value is always within range.
+// - the last image of images is not the same as the first image of next_images.
 pub struct ScreensaverState {
     images: Vec<Image>,
     next_images: Vec<Image>,
@@ -12,6 +17,7 @@ pub struct ScreensaverState {
 }
 
 impl ScreensaverState {
+    /// Create a [ScreensaverState] with no images.
     pub fn new() -> Self {
         Self {
             images: Vec::new(),
@@ -20,22 +26,51 @@ impl ScreensaverState {
         }
     }
 
+    /// This inserts a single image. This could be called multiple times to insert multiple images.
     fn insert_impl(&mut self, rng: &mut impl RngCore, value: Image) {
-        if let Some(idx) = self.current_index {
-            let len = self.images.len();
-            // Prevents panic from generating against an empty range.
-            if idx < len {
-                self.images.push(value);
-                // Generate `new_idx` after `push` as the last position is also valid.
-                let new_idx = rng.gen_range(idx..self.images.len());
-                // `len` is guaranteed to point at the last position after a single `push`.
-                self.images.swap(len, new_idx);
-            } else {
-                self.images.push(value);
+        self.images.push(value.clone());
+        self.next_images.push(value);
+        match self.current_index {
+            None => {
+                self.current_index = Some(0);
             }
-        } else {
-            self.images.push(value);
-            self.current_index = Some(0);
+            Some(idx) => {
+                // `images` swap. Uses `last_idx` because we generate a range against `idx`.
+                let last_idx = self.images.len() - 1;
+                // Generates when the range would be at least 2.
+                if idx < last_idx {
+                    let new_idx = rng.gen_range(idx..last_idx + 1);
+                    self.images.swap(last_idx, new_idx);
+                }
+
+                // `next_images` swap. Uses `len` because we generate a range on the entire Vec.
+                let len = self.next_images.len();
+                // Generates when the range would be at least 2.
+                if len > 1 {
+                    let new_idx = rng.gen_range(0..len);
+                    self.next_images.swap(len - 1, new_idx);
+                }
+
+                // NOTE: potential performance gain when inserting multiple images
+                // by making calling code call this method.
+                self.ensure_curr_end_and_next_start_are_different(rng);
+            }
+        }
+    }
+
+    /// This helps avoid a bug when making successive calls to resolve
+    /// the same image near list ends. By moving the next start somewhere
+    /// else in the list, we guarantee that you can't have the same image twice in
+    /// a row, preventing a double resolve bug from a single image.
+    fn ensure_curr_end_and_next_start_are_different(&mut self, rng: &mut impl RngCore) {
+        let curr_end = self.images.last();
+        let next_start = self.next_images.first();
+        if let Some((curr_end, next_start)) = curr_end.zip(next_start) {
+            let len = self.next_images.len();
+            if curr_end.file_name == next_start.file_name && len > 1 {
+                let new_idx = rng.gen_range(1..len);
+                self.next_images.swap(0, new_idx);
+            }
         }
     }
 }
@@ -46,26 +81,29 @@ impl Screensaver for ScreensaverState {
     }
 
     fn resolve(&mut self, file_name: &str) -> ResolveState {
-        if let Some(idx) = self.current_index {
-            let len = self.images.len();
-            let img = &self.images[idx];
-            if img.file_name == file_name {
-                let new_idx = idx + 1;
-                if new_idx >= len {
-                    self.current_index = Some(0);
-                    std::mem::swap(&mut self.images, &mut self.next_images);
-                    let mut rng = thread_rng();
-                    self.next_images.shuffle(&mut rng);
-                    // TODO: check for equality on last of current and first of next
+        match self.current_index {
+            None => ResolveState::NoImages,
+            Some(idx) => {
+                let len = self.images.len();
+                let img = &self.images[idx];
+                if img.file_name != file_name {
+                    ResolveState::NotCurrent
                 } else {
-                    self.current_index = Some(new_idx);
+                    let new_idx = idx + 1;
+                    if new_idx < len {
+                        self.current_index = Some(new_idx);
+                    } else {
+                        std::mem::swap(&mut self.images, &mut self.next_images);
+                        self.current_index = Some(0);
+
+                        let mut rng = thread_rng();
+                        self.next_images.shuffle(&mut rng);
+                        self.ensure_curr_end_and_next_start_are_different(&mut rng);
+                    }
+
+                    ResolveState::Resolved
                 }
-                ResolveState::Resolved
-            } else {
-                ResolveState::NotCurrent
             }
-        } else {
-            ResolveState::NoImages
         }
     }
 
@@ -83,30 +121,20 @@ impl Screensaver for ScreensaverState {
 
     fn clear(&mut self) {
         self.images.clear();
+        self.next_images.clear();
         self.current_index = None;
     }
 
     fn replace<T: Iterator<Item = Image>>(&mut self, values: T) {
-        let old_img = self.images.last();
-
         let mut rng = thread_rng();
         let mut values: Vec<_> = values.collect();
+        let mut next_values = values.clone();
         values.shuffle(&mut rng);
-        let new_img = values.first();
-
-        // This section helps avoid a scenario where 2 clients could try to resolve
-        // the same image across a replace operation. By moving the new start somewhere
-        // else in the list, we guarantee that you can't have the same image twice in
-        // a row, preventing a double resolve bug from a single image.
-        if let Some((old_img, new_img)) = old_img.zip(new_img) {
-            let len = values.len();
-            if old_img.file_name == new_img.file_name && len >= 2 {
-                let new_idx = rng.gen_range(1..len);
-                values.swap(0, new_idx);
-            }
-        }
+        next_values.shuffle(&mut rng);
 
         self.images = values;
+        self.next_images = next_values;
         self.current_index = Some(0);
+        self.ensure_curr_end_and_next_start_are_different(&mut rng);
     }
 }
