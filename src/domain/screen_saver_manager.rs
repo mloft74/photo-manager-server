@@ -42,19 +42,129 @@ struct ScreensaverState {
 }
 
 impl ScreensaverState {
-    fn swap_images(&mut self) {
-        std::mem::swap(&mut self.images, &mut self.next_images);
+    fn new() -> Self {
+        Self {
+            images: Vec::new(),
+            next_images: Vec::new(),
+            current_index: None,
+        }
+    }
+
+    fn insert_impl(&mut self, rng: &mut impl RngCore, value: Image) {
+        if let Some(idx) = self.current_index {
+            let len = self.images.len();
+            // Prevents panic from generating against an empty range.
+            if idx < len {
+                self.images.push(value);
+                // Generate `new_idx` after `push` as the last position is also valid.
+                let new_idx = rng.gen_range(idx..self.images.len());
+                // `len` is guaranteed to point at the last position after a single `push`.
+                self.images.swap(len, new_idx);
+            } else {
+                self.images.push(value);
+            }
+        } else {
+            self.images.push(value);
+            self.current_index = Some(0);
+        }
+    }
+}
+
+pub trait Screensaver {
+    // TODO: doc
+    fn current(&self) -> Option<Image>;
+
+    // TODO: doc
+    fn resolve(&mut self, file_name: &str) -> ResolveState;
+
+    /// Inserts an `Image` into a random location in the internal structure.
+    fn insert(&mut self, value: Image);
+
+    /// Inserts the given `Image`s into random locations in the internal structure.
+    fn insert_many<T: Iterator<Item = Image>>(&mut self, values: T);
+
+    /// Removes all `Image`s from the internal structure.
+    fn clear(&mut self);
+
+    /// Shuffles the given `Image`s and replaces the images in the internal structure with the `Image`s.
+    fn replace<T: Iterator<Item = Image>>(&mut self, values: T);
+}
+
+impl Screensaver for ScreensaverState {
+    fn current(&self) -> Option<Image> {
+        self.current_index.map(|idx| self.images[idx].clone())
+    }
+
+    fn resolve(&mut self, file_name: &str) -> ResolveState {
+        if let Some(idx) = self.current_index {
+            let len = self.images.len();
+            let img = &self.images[idx];
+            if img.file_name == file_name {
+                let new_idx = idx + 1;
+                if new_idx >= len {
+                    self.current_index = Some(0);
+                    std::mem::swap(&mut self.images, &mut self.next_images);
+                    let mut rng = thread_rng();
+                    self.next_images.shuffle(&mut rng);
+                    // TODO: check for equality on last of current and first of next
+                } else {
+                    self.current_index = Some(new_idx);
+                }
+                ResolveState::Resolved
+            } else {
+                ResolveState::NotCurrent
+            }
+        } else {
+            ResolveState::NoImages
+        }
+    }
+
+    fn insert(&mut self, value: Image) {
+        let mut rng = thread_rng();
+        self.insert_impl(&mut rng, value)
+    }
+
+    fn insert_many<T: Iterator<Item = Image>>(&mut self, values: T) {
+        let mut rng = thread_rng();
+        for value in values {
+            self.insert_impl(&mut rng, value);
+        }
+    }
+
+    fn clear(&mut self) {
+        self.images.clear();
+        self.current_index = None;
+    }
+
+    fn replace<T: Iterator<Item = Image>>(&mut self, values: T) {
+        let old_img = self.images.last();
+
+        let mut rng = thread_rng();
+        let mut values: Vec<_> = values.collect();
+        values.shuffle(&mut rng);
+        let new_img = values.first();
+
+        // This section helps avoid a scenario where 2 clients could try to resolve
+        // the same image across a replace operation. By moving the new start somewhere
+        // else in the list, we guarantee that you can't have the same image twice in
+        // a row, preventing a double resolve bug from a single image.
+        if let Some((old_img, new_img)) = old_img.zip(new_img) {
+            let len = values.len();
+            if old_img.file_name == new_img.file_name && len >= 2 {
+                let new_idx = rng.gen_range(1..len);
+                values.swap(0, new_idx);
+            }
+        }
+
+        self.images = values;
+        self.current_index = Some(0);
     }
 }
 
 impl ScreenSaverManager {
     pub fn new() -> Self {
         Self {
-            state: Arc::new(Mutex::new(ScreensaverState {
-                images: Vec::new(),
-                next_images: Vec::new(),
-                current_index: None,
-            })),
+            state: Arc::new(Mutex::new(ScreensaverState::new())),
         }
     }
 
@@ -76,107 +186,27 @@ impl ScreenSaverManager {
         self.acquire_lock().images.pop()
     }
 
-    // TODO: change to result type because idx could be out of range
-    // TODO: doc
     pub fn current(&self) -> Option<Image> {
-        let state = self.acquire_lock();
-        state
-            .current_index
-            .and_then(|idx| state.images.get(idx).cloned())
+        self.acquire_lock().current()
     }
 
-    // TODO: doc
     pub fn resolve(&mut self, file_name: &str) -> ResolveState {
-        let mut state = self.acquire_lock();
-        if let Some(idx) = state.current_index {
-            let len = state.images.len();
-            let img = &state.images[idx];
-            if img.file_name == file_name {
-                let new_idx = idx + 1;
-                if new_idx >= len {
-                    state.current_index = Some(0);
-                    state.swap_images();
-                    let mut rng = thread_rng();
-                    state.next_images.shuffle(&mut rng);
-                    // TODO: check for equality on last of current and first of next
-                } else {
-                    state.current_index = Some(new_idx);
-                }
-                ResolveState::Resolved
-            } else {
-                ResolveState::NotCurrent
-            }
-        } else {
-            ResolveState::NoImages
-        }
+        self.acquire_lock().resolve(file_name)
     }
 
-    /// Inserts an `Image` into a random location in the internal structure.
     pub fn insert(&mut self, value: Image) {
-        let mut state = self.acquire_lock();
-        let mut rng = thread_rng();
-        insert_impl(&mut state, &mut rng, value);
+        self.acquire_lock().insert(value)
     }
 
-    /// Inserts the given `Image`s into random locations in the internal structure.
     pub fn _insert_many<T: Iterator<Item = Image>>(&mut self, values: T) {
-        let mut state = self.acquire_lock();
-        let mut rng = thread_rng();
-        for value in values {
-            insert_impl(&mut state, &mut rng, value);
-        }
+        self.acquire_lock().insert_many(values);
     }
 
-    /// Removes all `Image`s from the internal structure.
     pub fn _clear(&mut self) {
-        let mut state = self.acquire_lock();
-        state.images.clear();
-        state.current_index = None;
+        self.acquire_lock().clear()
     }
 
-    /// Shuffles the given `Image`s and replaces the images in the internal structure with the `Image`s.
     pub fn replace<T: Iterator<Item = Image>>(&mut self, values: T) {
-        let mut rng = thread_rng();
-        let mut values: Vec<_> = values.collect();
-        values.shuffle(&mut rng);
-        let new_img = values.first();
-
-        let mut state = self.acquire_lock();
-        let old_img = state.images.last();
-
-        // This section helps avoid a scenario where 2 clients could try to resolve
-        // the same image across a replace operation. By moving the new start somewhere
-        // else in the list, we guarantee that you can't have the same image twice in
-        // a row, preventing a double resolve bug from a single image.
-        if let Some((old_img, new_img)) = old_img.zip(new_img) {
-            let len = values.len();
-            if old_img.file_name == new_img.file_name && len >= 2 {
-                let new_idx = rng.gen_range(1..len);
-                values.swap(0, new_idx);
-            }
-        }
-
-        state.images = values;
-        state.current_index = Some(0);
-    }
-}
-
-// TODO: insert on both lists and verify last of current does not equal first of next
-fn insert_impl(state: &mut MutexGuard<'_, ScreensaverState>, rng: &mut impl RngCore, value: Image) {
-    if let Some(idx) = state.current_index {
-        let len = state.images.len();
-        // Prevents panic from generating against an empty range.
-        if idx < len {
-            state.images.push(value);
-            // Generate `new_idx` after `push` as the last position is also valid.
-            let new_idx = rng.gen_range(idx..state.images.len());
-            // `len` is guaranteed to point at the last position after a single `push`.
-            state.images.swap(len, new_idx);
-        } else {
-            state.images.push(value);
-        }
-    } else {
-        state.images.push(value);
-        state.current_index = Some(0);
+        self.acquire_lock().replace(values)
     }
 }
