@@ -21,13 +21,15 @@ use crate::domain::models::Image;
 // 3. When inserting, insert in the back, then just swap it in somewhere randomly. The order of what is next is not important.
 //    - I think a screensaver iteration count could fix this as well. You get what iteration an image is part of, and then you pass it it. If you are resolving the wrong iteration, nothing happens.
 
-// TODO: rename
-pub enum ResolveState {}
-
-#[derive(Clone)]
-pub struct IndexedImage {
-    pub index: usize,
-    pub image: Image,
+pub enum ResolveState {
+    /// The image being resolved is not the current image of the manager.
+    NotCurrent,
+    /// The manager has run out of images this iteration and needs to be renewed.
+    OutOfImages,
+    /// The image was resolved.
+    Resolved { has_next_image: bool },
+    /// The manager contains no images, so resolving cannot occur.
+    NoImages,
 }
 
 #[derive(Clone)]
@@ -68,20 +70,38 @@ impl ScreenSaverManager {
         self.acquire_lock().images.pop()
     }
 
-    // pub fn current(&self) -> Option<IndexedImage> {
-    //     let state = self.acquire_lock();
-    //     state.current_index.and_then(|idx| {
-    //         state.images.get(idx).cloned().map(|img| IndexedImage {
-    //             index: idx,
-    //             image: img,
-    //         })
-    //     })
-    // }
+    // TODO: change to result type because idx could be out of range
+    // TODO: doc
+    pub fn current(&self) -> Option<Image> {
+        let state = self.acquire_lock();
+        state
+            .current_index
+            .and_then(|idx| state.images.get(idx).cloned())
+    }
 
-    // pub fn resolve(&mut self, file_name: &str) -> Option<ResolveState> {
-    //     let state = self.acquire_lock();
-    //     None
-    // }
+    // TODO: doc
+    pub fn resolve(&mut self, file_name: &str) -> ResolveState {
+        let mut state = self.acquire_lock();
+        if let Some(idx) = state.current_index {
+            let len = state.images.len();
+            if idx >= len {
+                ResolveState::OutOfImages
+            } else {
+                let img = &state.images[idx];
+                if img.file_name == file_name {
+                    let new_idx = idx + 1;
+                    state.current_index = Some(new_idx);
+                    ResolveState::Resolved {
+                        has_next_image: idx != len,
+                    }
+                } else {
+                    ResolveState::NotCurrent
+                }
+            }
+        } else {
+            ResolveState::NoImages
+        }
+    }
 
     /// Inserts an `Image` into a random location in the internal structure.
     pub fn insert(&mut self, value: Image) {
@@ -108,24 +128,46 @@ impl ScreenSaverManager {
 
     /// Shuffles the given `Image`s and replaces the images in the internal structure with the `Image`s.
     pub fn replace<T: Iterator<Item = Image>>(&mut self, values: T) {
-        let mut state = self.acquire_lock();
         let mut rng = thread_rng();
         let mut values: Vec<_> = values.collect();
         values.shuffle(&mut rng);
+        let new_img = values.first();
+
+        let mut state = self.acquire_lock();
+        let old_img = state.images.last();
+
+        // This section helps avoid a scenario where 2 clients could try to resolve
+        // the same image across a replace operation. By moving the new start somewhere
+        // else in the list, we guarantee that you can't have the same image twice in
+        // a row, preventing a double resolve bug from a single image.
+        if let Some((old_img, new_img)) = old_img.zip(new_img) {
+            let len = values.len();
+            if old_img.file_name == new_img.file_name && len >= 2 {
+                let new_idx = rng.gen_range(1..len);
+                values.swap(0, new_idx);
+            }
+        }
+
         state.images = values;
         state.current_index = Some(0);
     }
 }
 
 fn insert_impl(state: &mut MutexGuard<'_, State>, rng: &mut impl RngCore, value: Image) {
-    // Prevents panic from generating against an empty range.
-    if state.images.is_empty() {
+    if let Some(idx) = state.current_index {
+        let len = state.images.len();
+        // Prevents panic from generating against an empty range.
+        if idx < len {
+            state.images.push(value);
+            // Generate `new_idx` after `push` as the last position is also valid.
+            let new_idx = rng.gen_range(idx..state.images.len());
+            // `len` is guaranteed to point at the last position after a single `push`.
+            state.images.swap(len, new_idx);
+        } else {
+            state.images.push(value);
+        }
+    } else {
         state.images.push(value);
         state.current_index = Some(0);
-    } else {
-        let length = state.images.len();
-        let i = state.current_index.expect("current_index should be Some");
-        let index = rng.gen_range(i..length);
-        state.images.insert(index, value);
     }
 }
