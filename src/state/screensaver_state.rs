@@ -5,6 +5,10 @@ use crate::domain::{
     screensaver::{ResolveState, Screensaver},
 };
 
+// IDEA FOR NEW IMPL: use a Vec, VecDeque, and a current_index variable.
+// The Vec contains all of the images we're using, the VecDeque has 2
+// slots for current and next
+
 // Invariants:
 // - images and next_images always contain the same values.
 // - if images is empty, current_index is None, otherwise Some.
@@ -13,6 +17,9 @@ use crate::domain::{
 pub struct ScreensaverState {
     /// The images for the current iteration of the screensaver.
     images: Vec<Image>,
+    // NOTE FOR CURRENT IMPL: could potentially be replaced with `Option<usize>` and it
+    // would be an index before `current_index`. It would only be
+    // needed once `current_index` is the last index of `images`.
     /// The images for the next iteration of the screensaver.
     next_images: Vec<Image>,
     /// The current index of `images`.
@@ -40,9 +47,11 @@ impl ScreensaverState {
             Some(idx) => {
                 // `images` swap. Uses `last_idx` because we generate a range against `idx`.
                 let last_idx = self.images.len() - 1;
+                // `current` and `next` should remain stable.
+                let first_unstable_idx = idx + 2;
                 // Generates when the range would be at least 2.
-                if idx < last_idx {
-                    let new_idx = rng.gen_range(idx..last_idx + 1);
+                if first_unstable_idx < last_idx {
+                    let new_idx = rng.gen_range(first_unstable_idx..last_idx + 1);
                     self.images.swap(last_idx, new_idx);
                 }
 
