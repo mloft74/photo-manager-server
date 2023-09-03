@@ -24,13 +24,13 @@ use crate::{
     domain::{
         actions::image::{FetchImage, SaveImage},
         models::Image,
-        screen_saver_manager::ScreenSaverManager,
+        screensaver::Screensaver,
     },
 };
 
 pub fn make_upload_router(
     image_mngr: impl 'static + Clone + Send + Sync + FetchImage + SaveImage,
-    ss_mngr: ScreenSaverManager,
+    ss_mngr: impl 'static + Clone + Send + Sync + Screensaver,
 ) -> Router {
     Router::new()
         .route(
@@ -57,7 +57,7 @@ impl ApiError for UploadImageError {}
 async fn upload_image(
     mut multipart: Multipart,
     image_mngr: impl FetchImage + SaveImage,
-    mut ss_mngr: ScreenSaverManager,
+    mut ss_mngr: impl Screensaver,
 ) -> Result<(), (StatusCode, String)> {
     let (file_name, file_field) = validate_field(multipart.next_field().await).map_err(|e| {
         (

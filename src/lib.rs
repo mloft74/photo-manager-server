@@ -3,6 +3,7 @@ use dotenvy::dotenv;
 mod api;
 mod domain;
 mod persistence;
+mod state;
 
 mod server_tracing;
 

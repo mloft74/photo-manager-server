@@ -2,14 +2,14 @@ use axum::Router;
 use serde::Serialize;
 use serde_json::json;
 
-use crate::{domain::screen_saver_manager::ScreenSaverManager, persistence::PersistenceManager};
+use crate::{persistence::PersistenceManager, state::screensaver_manager::ScreensaverManager};
 
 mod image;
 mod ping;
 
 pub fn make_api_router(
     persistence_mngr: &PersistenceManager,
-    ss_mngr: &ScreenSaverManager,
+    ss_mngr: &ScreensaverManager,
 ) -> Router {
     Router::new().nest(
         "/api",

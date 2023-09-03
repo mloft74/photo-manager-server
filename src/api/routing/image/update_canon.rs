@@ -6,12 +6,12 @@ use crate::{
         canon::{self, UpdateCanonError},
         routing::ApiError,
     },
-    domain::{actions::image::UpdateCanon, screen_saver_manager::ScreenSaverManager},
+    domain::{actions::image::UpdateCanon, screensaver::Screensaver},
 };
 
 pub fn make_update_canon_router(
     uc: impl 'static + Clone + Send + Sync + UpdateCanon,
-    mngr: ScreenSaverManager,
+    mngr: impl 'static + Clone + Send + Sync + Screensaver,
 ) -> Router {
     Router::new().route("/update_canon", post(|| update_canon(uc, mngr)))
 }
@@ -20,7 +20,7 @@ impl ApiError for UpdateCanonError {}
 
 async fn update_canon(
     uc: impl UpdateCanon,
-    mut mngr: ScreenSaverManager,
+    mut mngr: impl Screensaver,
 ) -> Result<(), (StatusCode, String)> {
     canon::update_canon(&uc, &mut mngr)
         .await

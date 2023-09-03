@@ -1,6 +1,6 @@
 use axum::{middleware, Router};
 
-use crate::{domain::screen_saver_manager::ScreenSaverManager, persistence::PersistenceManager};
+use crate::{persistence::PersistenceManager, state::screensaver_manager::ScreensaverManager};
 
 mod canon;
 mod image_dimensions;
@@ -11,7 +11,7 @@ mod routing;
 const IMAGES_DIR: &str = "/var/lib/photo_manager_server/images";
 
 pub async fn make_api_router(persistence_mngr: &PersistenceManager) -> Router {
-    let mut ss_mngr = ScreenSaverManager::new();
+    let mut ss_mngr = ScreensaverManager::new();
     canon::update_canon(&persistence_mngr, &mut ss_mngr)
         .await
         .expect("Canon should be updatable from startup");

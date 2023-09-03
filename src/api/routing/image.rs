@@ -2,8 +2,8 @@ use axum::Router;
 use serde::Serialize;
 
 use crate::{
-    domain::{models::Image, screen_saver_manager::ScreenSaverManager},
-    persistence::PersistenceManager,
+    domain::models::Image, persistence::PersistenceManager,
+    state::screensaver_manager::ScreensaverManager,
 };
 
 mod delete;
@@ -16,7 +16,7 @@ mod upload;
 
 pub fn make_image_router(
     persistence_mngr: &PersistenceManager,
-    ss_mngr: &ScreenSaverManager,
+    ss_mngr: &ScreensaverManager,
 ) -> Router {
     Router::new().nest(
         "/image",
