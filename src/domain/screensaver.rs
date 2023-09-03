@@ -10,10 +10,15 @@ pub enum ResolveState {
 }
 
 pub trait Screensaver {
-    // TODO: doc
+    /// Returns the current image if it exists.
     fn current(&self) -> Option<Image>;
 
-    // TODO: doc
+    /// Returns the next image if it exists.
+    fn next(&self) -> Option<Image>;
+
+    /// Resolves an image of the given name.
+    /// If the name being resolved isn't the current image,
+    /// or if there are no images,nothing happens.
     fn resolve(&mut self, file_name: &str) -> ResolveState;
 
     /// Inserts an `Image` into a random location in the internal structure.

@@ -7,12 +7,15 @@ use crate::domain::{
 
 // Invariants:
 // - images and next_images always contain the same values.
-// - if images is not empty, current_index is Some.
+// - if images is empty, current_index is None, otherwise Some.
 // - if current_index is Some, the value is always within range.
 // - the last image of images is not the same as the first image of next_images.
 pub struct ScreensaverState {
+    /// The images for the current iteration of the screensaver.
     images: Vec<Image>,
+    /// The images for the next iteration of the screensaver.
     next_images: Vec<Image>,
+    /// The current index of `images`.
     current_index: Option<usize>,
 }
 
@@ -78,6 +81,19 @@ impl ScreensaverState {
 impl Screensaver for ScreensaverState {
     fn current(&self) -> Option<Image> {
         self.current_index.map(|idx| self.images[idx].clone())
+    }
+
+    fn next(&self) -> Option<Image> {
+        self.current_index.map(|idx| {
+            let next_idx = idx + 1;
+            let len = self.images.len();
+            if next_idx < len {
+                self.images[next_idx].clone()
+            } else {
+                let next_idx = len - next_idx;
+                self.next_images[next_idx].clone()
+            }
+        })
     }
 
     fn resolve(&mut self, file_name: &str) -> ResolveState {
