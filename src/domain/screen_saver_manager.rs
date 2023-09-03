@@ -24,36 +24,42 @@ use crate::domain::models::Image;
 pub enum ResolveState {
     /// The image being resolved is not the current image of the manager.
     NotCurrent,
-    /// The manager has run out of images this iteration and needs to be renewed.
-    OutOfImages,
     /// The image was resolved.
-    Resolved { has_next_image: bool },
+    Resolved,
     /// The manager contains no images, so resolving cannot occur.
     NoImages,
 }
 
 #[derive(Clone)]
 pub struct ScreenSaverManager {
-    state: Arc<Mutex<State>>,
+    state: Arc<Mutex<ScreensaverState>>,
 }
 
-struct State {
+struct ScreensaverState {
     images: Vec<Image>,
+    next_images: Vec<Image>,
     current_index: Option<usize>,
+}
+
+impl ScreensaverState {
+    fn swap_images(&mut self) {
+        std::mem::swap(&mut self.images, &mut self.next_images);
+    }
 }
 
 impl ScreenSaverManager {
     pub fn new() -> Self {
         Self {
-            state: Arc::new(Mutex::new(State {
+            state: Arc::new(Mutex::new(ScreensaverState {
                 images: Vec::new(),
+                next_images: Vec::new(),
                 current_index: None,
             })),
         }
     }
 
     /// In this case, we don't care if the mutex is poisoned, as we simply hold a list of values.
-    fn acquire_lock(&self) -> MutexGuard<'_, State> {
+    fn acquire_lock(&self) -> MutexGuard<'_, ScreensaverState> {
         match self.state.lock() {
             Ok(guard) => guard,
             Err(poison) => {
@@ -84,19 +90,21 @@ impl ScreenSaverManager {
         let mut state = self.acquire_lock();
         if let Some(idx) = state.current_index {
             let len = state.images.len();
-            if idx >= len {
-                ResolveState::OutOfImages
-            } else {
-                let img = &state.images[idx];
-                if img.file_name == file_name {
-                    let new_idx = idx + 1;
-                    state.current_index = Some(new_idx);
-                    ResolveState::Resolved {
-                        has_next_image: idx != len,
-                    }
+            let img = &state.images[idx];
+            if img.file_name == file_name {
+                let new_idx = idx + 1;
+                if new_idx >= len {
+                    state.current_index = Some(0);
+                    state.swap_images();
+                    let mut rng = thread_rng();
+                    state.next_images.shuffle(&mut rng);
+                    // TODO: check for equality on last of current and first of next
                 } else {
-                    ResolveState::NotCurrent
+                    state.current_index = Some(new_idx);
                 }
+                ResolveState::Resolved
+            } else {
+                ResolveState::NotCurrent
             }
         } else {
             ResolveState::NoImages
@@ -153,7 +161,8 @@ impl ScreenSaverManager {
     }
 }
 
-fn insert_impl(state: &mut MutexGuard<'_, State>, rng: &mut impl RngCore, value: Image) {
+// TODO: insert on both lists and verify last of current does not equal first of next
+fn insert_impl(state: &mut MutexGuard<'_, ScreensaverState>, rng: &mut impl RngCore, value: Image) {
     if let Some(idx) = state.current_index {
         let len = state.images.len();
         // Prevents panic from generating against an empty range.
