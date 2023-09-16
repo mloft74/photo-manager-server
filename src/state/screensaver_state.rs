@@ -201,6 +201,19 @@ mod tests {
     }
 
     #[test]
+    fn current_is_none_after_clear() {
+        // Arrange
+        let mut sut = mk_sut();
+
+        // Act
+        sut.insert(mk_img(1));
+        sut.clear();
+
+        // Assert
+        assert!(sut.current().is_none());
+    }
+
+    #[test]
     fn current_is_same_from_multiple_current_calls() {
         // Arrange
         let mut sut = mk_sut();
