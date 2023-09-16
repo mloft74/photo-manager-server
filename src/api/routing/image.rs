@@ -6,6 +6,7 @@ use crate::{
     state::screensaver_manager::ScreensaverManager,
 };
 
+mod current;
 mod delete;
 mod get;
 mod paginated;
@@ -36,6 +37,7 @@ pub fn make_image_router(
             ))
             .merge(paginated::make_paginated_router(persistence_mngr.clone()))
             .merge(rename::make_rename_router(persistence_mngr.clone()))
+            .merge(current::make_current_router(ss_mngr.clone()))
             .merge(delete::make_delete_router(persistence_mngr.clone())),
     )
 }
