@@ -12,7 +12,6 @@ mod get;
 mod paginated;
 mod rename;
 mod resolve;
-mod take_next;
 mod update_canon;
 mod upload;
 
@@ -31,10 +30,6 @@ pub fn make_image_router(
             .merge(update_canon::make_update_canon_router(
                 persistence_mngr.clone(),
                 ss_mngr.clone(),
-            ))
-            .merge(take_next::make_take_next_router(
-                ss_mngr.clone(),
-                persistence_mngr.clone(),
             ))
             .merge(paginated::make_paginated_router(persistence_mngr.clone()))
             .merge(rename::make_rename_router(persistence_mngr.clone()))
