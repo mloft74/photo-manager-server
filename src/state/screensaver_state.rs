@@ -6,9 +6,10 @@ use crate::domain::{
 };
 
 // Invariants:
-// - if images is empty, current_index is None, otherwise Some.
-// - if current_index is Some, the value is always within range.
-// - the last image of the current iteration of images is not the first image of the next iteration of images.
+// - If images is empty, current_index is None, otherwise Some.
+// - If current_index is Some, the value is always within range.
+// - The last image of the current iteration of images is not the first image of the next iteration of images.
+//   - Only applies when more than 1 image is held.
 pub struct ScreensaverState {
     /// The images for the current iteration of the screensaver.
     images: Vec<Image>,
@@ -192,12 +193,11 @@ mod tests {
         let mut sut = mk_sut();
 
         // Act
-        sut.replace(vec![mk_img(1)].into_iter());
+        sut.insert(mk_img(1));
         sut.replace(vec![].into_iter());
 
         // Assert
-        let curr = sut.current();
-        assert!(curr.is_none());
+        assert!(sut.current().is_none());
     }
 
     #[test]
@@ -247,6 +247,60 @@ mod tests {
         // Assert
         let b = sut.current().expect("image should have been inserted");
         assert_eq!(a, b);
+    }
+
+    #[test]
+    fn current_is_different_after_replace() {
+        // Arrange
+        let mut sut = mk_sut();
+        let min = 1;
+        let max = 3;
+        let imgs = (min..max).map(mk_img);
+
+        // Act
+        sut.replace(imgs.clone());
+        for _ in min..(max - 1) {
+            sut.resolve(
+                &sut.current()
+                    .expect("there should still be a current available")
+                    .file_name,
+            );
+        }
+        let a = sut
+            .current()
+            .expect("there should still be a current available");
+        sut.replace(imgs);
+
+        // Assert
+        let b = sut.current().expect("replace should have added images");
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn current_is_different_after_fully_resolved() {
+        // Arrange
+        let mut sut = mk_sut();
+        let min = 1;
+        let max = 3;
+        let imgs = (min..max).map(mk_img);
+
+        // Act
+        sut.replace(imgs.clone());
+        for _ in min..(max - 1) {
+            sut.resolve(
+                &sut.current()
+                    .expect("there should still be a current available")
+                    .file_name,
+            );
+        }
+        let a = sut
+            .current()
+            .expect("there should still be a current available");
+        sut.resolve(&a.file_name);
+
+        // Assert
+        let b = sut.current().expect("replace should have added images");
+        assert_ne!(a, b);
     }
 
     #[test]
