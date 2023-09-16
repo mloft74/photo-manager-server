@@ -69,17 +69,7 @@ impl Screensaver for ScreensaverState {
                         let mut rng = thread_rng();
                         self.images.shuffle(&mut rng);
 
-                        // This helps avoid a bug when making successive calls to resolve
-                        // the same image at the list end. By moving the next start somewhere
-                        // else in the list, we guarantee that you can't have the same image twice in
-                        // a row, preventing a double resolve bug from a single image.
-                        // Also, generate on non-empty range.
-                        let new_name = &self.images[0].file_name;
-                        if curr_name == *new_name && len > 1 {
-                            tracing::debug!("swapping");
-                            let new_idx = rng.gen_range(1..len);
-                            self.images.swap(0, new_idx);
-                        }
+                        ensure_different_next_image(&curr_name, &mut self.images, &mut rng);
                     }
 
                     ResolveState::Resolved
@@ -105,14 +95,36 @@ impl Screensaver for ScreensaverState {
         self.current_index = None;
     }
 
-    // TODO: Check length of images we were given
-    // TODO: Verify that the current image is not the next image
     fn replace<T: Iterator<Item = Image>>(&mut self, values: T) {
-        let mut rng = thread_rng();
         let mut values: Vec<_> = values.collect();
-        values.shuffle(&mut rng);
+        if values.is_empty() {
+            self.current_index = None;
+        } else {
+            let curr_name = self.current().map(|e| e.file_name);
+            self.current_index = Some(0);
 
+            let mut rng = thread_rng();
+            values.shuffle(&mut rng);
+
+            if let Some(curr_name) = curr_name {
+                ensure_different_next_image(&curr_name, &mut values, &mut rng);
+            }
+        }
         self.images = values;
-        self.current_index = Some(0);
+    }
+}
+
+// This helps avoid a bug when making successive calls to resolve
+// the same image at the list end. By moving the next start somewhere
+// else in the list, we guarantee that you can't have the same image twice in
+// a row, preventing a double resolve bug from a single image.
+// Also, generate on non-empty range.
+fn ensure_different_next_image(curr_name: &str, images: &mut [Image], rng: &mut impl RngCore) {
+    let new_name = &images[0].file_name;
+    let len = images.len();
+    if curr_name == new_name && len > 1 {
+        tracing::debug!("swapping");
+        let new_idx = rng.gen_range(1..len);
+        images.swap(0, new_idx);
     }
 }
