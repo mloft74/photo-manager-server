@@ -192,6 +192,7 @@ mod tests {
     fn current_is_same_from_multiple_current_and_insert_calls() {
         // Arrange
         let mut sut = mk_sut();
+
         // Act
         let max = 11;
         for x in 1..max {
@@ -203,5 +204,29 @@ mod tests {
         // Assert
         let b = sut.current().expect("image should have been inserted");
         assert_eq!(a, b);
+    }
+
+    #[test]
+    fn can_insert_more_than_2_images() {
+        // Arrange
+        let mut sut = mk_sut();
+
+        // Act
+        for x in 1..11 {
+            sut.insert(mk_img(x));
+        }
+
+        // No Assert, testing for panic above.
+    }
+
+    #[test]
+    fn can_insert_many_more_than_2_images() {
+        // Arrange
+        let mut sut = mk_sut();
+
+        // Act
+        sut.insert_many((1..11).map(mk_img));
+
+        // No Assert, testing for panic above.
     }
 }
