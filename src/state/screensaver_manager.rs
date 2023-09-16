@@ -56,6 +56,10 @@ impl Screensaver for ScreensaverManager {
         self.acquire_lock().rename_image(old_name, new_name)
     }
 
+    fn delete_image(&mut self, file_name: &str) -> Result<(), ()> {
+        self.acquire_lock().delete_image(file_name)
+    }
+
     fn clear(&mut self) {
         self.acquire_lock().clear()
     }

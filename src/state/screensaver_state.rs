@@ -48,6 +48,17 @@ impl ScreensaverState {
             }
         }
     }
+
+    fn index_by_file_name(&self, file_name: &str) -> Option<usize> {
+        self.images.iter().position(|i| i.file_name == file_name)
+    }
+
+    /// Resets `current_index` to 0 and shuffles `images`.
+    /// This can only be called if `images` is not empty.
+    fn shuffle(&mut self, rng: &mut impl RngCore) {
+        self.current_index = Some(0);
+        self.images.shuffle(rng);
+    }
 }
 
 impl Screensaver for ScreensaverState {
@@ -68,11 +79,8 @@ impl Screensaver for ScreensaverState {
                     if new_idx < len {
                         self.current_index = Some(new_idx);
                     } else {
-                        self.current_index = Some(0);
-
                         let mut rng = thread_rng();
-                        self.images.shuffle(&mut rng);
-
+                        self.shuffle(&mut rng);
                         ensure_different_next_image(&curr_name, &mut self.images, &mut rng);
                     }
 
@@ -113,11 +121,39 @@ impl Screensaver for ScreensaverState {
     }
 
     fn rename_image(&mut self, old_name: &str, new_name: &str) -> Result<(), ()> {
-        let idx = self.images.iter().position(|i| i.file_name == old_name);
+        let idx = self.index_by_file_name(old_name);
         match idx {
             None => Err(()),
             Some(idx) => {
                 self.images[idx].file_name = new_name.to_string();
+                Ok(())
+            }
+        }
+    }
+
+    fn delete_image(&mut self, file_name: &str) -> Result<(), ()> {
+        let idx = self.index_by_file_name(file_name);
+        match idx {
+            None => Err(()),
+            Some(idx) => {
+                let curr_idx = self.current_index.expect(
+                    "current index should be valid since a match for the file name was found",
+                );
+                let curr_name = &self.images[curr_idx].file_name;
+                if idx < curr_idx {
+                    self.current_index = Some(curr_idx - 1);
+                }
+
+                self.images.remove(curr_idx);
+
+                let curr_idx = self.current_index.expect("current index should be valid");
+                let len = self.images.len();
+                if curr_idx >= len {
+                    let mut rng = thread_rng();
+                    self.shuffle(&mut rng);
+                    ensure_different_next_image(curr_name, &mut self.images, &mut rng);
+                }
+
                 Ok(())
             }
         }
@@ -129,21 +165,18 @@ impl Screensaver for ScreensaverState {
     }
 
     fn replace(&mut self, values: HashMap<String, Image>) {
-        let mut values: Vec<_> = values.into_iter().map(|v| v.1).collect();
-        if values.is_empty() {
+        self.images = values.into_iter().map(|v| v.1).collect();
+        if self.images.is_empty() {
             self.current_index = None;
         } else {
             let curr_name = self.current().map(|e| e.file_name);
-            self.current_index = Some(0);
 
             let mut rng = thread_rng();
-            values.shuffle(&mut rng);
-
+            self.shuffle(&mut rng);
             if let Some(curr_name) = curr_name {
-                ensure_different_next_image(&curr_name, &mut values, &mut rng);
+                ensure_different_next_image(&curr_name, &mut self.images, &mut rng);
             }
         }
-        self.images = values;
     }
 }
 

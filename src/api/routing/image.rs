@@ -38,7 +38,10 @@ pub fn make_image_router(
             ))
             .merge(current::make_current_router(ss_mngr.clone()))
             .merge(resolve::make_resolve_router(ss_mngr.clone()))
-            .merge(delete::make_delete_router(persistence_mngr.clone())),
+            .merge(delete::make_delete_router(
+                persistence_mngr.clone(),
+                ss_mngr.clone(),
+            )),
     )
 }
 

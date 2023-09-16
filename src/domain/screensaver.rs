@@ -43,6 +43,10 @@ pub trait Screensaver {
     /// Returns an `Err` if the `old_name` is not found.
     fn rename_image(&mut self, old_name: &str, new_name: &str) -> Result<(), ()>;
 
+    /// Removes an image.
+    /// Returns an `Err` if the `file_name` is not found.
+    fn delete_image(&mut self, file_name: &str) -> Result<(), ()>;
+
     /// Removes all images from the internal structure.
     fn clear(&mut self);
 
