@@ -34,12 +34,13 @@ impl ScreensaverState {
             }
             Some(idx) => {
                 let len = self.images.len();
+                let last_idx = len - 1;
                 // The images at idx and before need to be stable.
                 let x = idx + 1;
                 // Generate on non-empty range.
-                if x < len - 1 {
+                if x < last_idx {
                     let new_idx = rng.gen_range(x..len);
-                    self.images.swap(len, new_idx);
+                    self.images.swap(last_idx, new_idx);
                 }
             }
         }
@@ -122,9 +123,10 @@ impl Screensaver for ScreensaverState {
 fn ensure_different_next_image(curr_name: &str, images: &mut [Image], rng: &mut impl RngCore) {
     let new_name = &images[0].file_name;
     let len = images.len();
-    if curr_name == new_name && len > 1 {
+    let first_swap_idx = 1;
+    if curr_name == new_name && len > first_swap_idx {
         tracing::debug!("swapping");
-        let new_idx = rng.gen_range(1..len);
+        let new_idx = rng.gen_range(first_swap_idx..len);
         images.swap(0, new_idx);
     }
 }
@@ -137,6 +139,14 @@ mod tests {
     /// forcing tests to only test the public api.
     fn mk_sut() -> impl Screensaver {
         ScreensaverState::new()
+    }
+
+    fn mk_img(x: u32) -> Image {
+        Image {
+            file_name: format!("test {}", x),
+            width: x,
+            height: x,
+        }
     }
 
     #[test]
@@ -152,11 +162,7 @@ mod tests {
     fn is_some_after_insert() {
         // Arrange
         let mut sut = mk_sut();
-        let img = Image {
-            file_name: "test".to_string(),
-            width: 1,
-            height: 1,
-        };
+        let img = mk_img(1);
 
         // Act
         sut.insert(img.clone());
@@ -164,5 +170,38 @@ mod tests {
         // Assert
         let curr = sut.current().expect("curr should have been inserted");
         assert_eq!(curr, img);
+    }
+
+    #[test]
+    fn current_is_same_from_multiple_current_calls() {
+        // Arrange
+        let mut sut = mk_sut();
+
+        // Act
+        // Inserting mutliple images logically allows for multiple currents if sut works incorrectly.
+        sut.insert(mk_img(1));
+        sut.insert(mk_img(2));
+
+        // Assert
+        let a = sut.current().expect("image should have been inserted");
+        let b = sut.current().expect("image should have been inserted");
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn current_is_same_from_multiple_current_and_insert_calls() {
+        // Arrange
+        let mut sut = mk_sut();
+        // Act
+        let max = 11;
+        for x in 1..max {
+            sut.insert(mk_img(x));
+        }
+        let a = sut.current().expect("image should have been inserted");
+        sut.insert(mk_img(max));
+
+        // Assert
+        let b = sut.current().expect("image should have been inserted");
+        assert_eq!(a, b);
     }
 }
