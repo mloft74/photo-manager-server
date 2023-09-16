@@ -52,11 +52,15 @@ impl Screensaver for ScreensaverManager {
         self.acquire_lock().insert_many(values)
     }
 
+    fn rename_image(&mut self, old_name: &str, new_name: &str) -> Result<(), ()> {
+        self.acquire_lock().rename_image(old_name, new_name)
+    }
+
     fn clear(&mut self) {
         self.acquire_lock().clear()
     }
 
-    fn replace<T: Iterator<Item = Image>>(&mut self, values: T) {
+    fn replace(&mut self, values: HashMap<String, Image>) {
         self.acquire_lock().replace(values)
     }
 }

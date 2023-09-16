@@ -5,18 +5,22 @@ use tokio::fs;
 
 use crate::{
     api::{routing::ApiError, IMAGES_DIR},
-    domain::actions::image::RenameImage,
+    domain::{actions::image::RenameImage, screensaver::Screensaver},
 };
 
 // TODO: update ss_mngr here
-pub fn make_rename_router(ri: impl 'static + Clone + Send + Sync + RenameImage) -> Router {
-    Router::new().route("/rename", post(|body| rename_image(body, ri)))
+pub fn make_rename_router(
+    ri: impl 'static + Clone + Send + Sync + RenameImage,
+    ss_mngr: impl 'static + Clone + Send + Sync + Screensaver,
+) -> Router {
+    Router::new().route("/rename", post(|body| rename_image(body, ri, ss_mngr)))
 }
 
 #[derive(Serialize)]
 enum RenameImageError {
     Fs(String),
     Persistence(String),
+    FailedToRenameInQueue,
 }
 
 impl ApiError for RenameImageError {}
@@ -30,6 +34,7 @@ struct RenameInput {
 async fn rename_image(
     Json(input): Json<RenameInput>,
     ri: impl RenameImage,
+    mut ss_mngr: impl Screensaver,
 ) -> Result<(), (StatusCode, String)> {
     rename_fs(&input).await.map_err(|e| {
         (
@@ -44,6 +49,15 @@ async fn rename_image(
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 RenameImageError::Persistence(e).to_json_string(),
+            )
+        })?;
+
+    ss_mngr
+        .rename_image(&input.old_name, &input.new_name)
+        .map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                RenameImageError::FailedToRenameInQueue.to_json_string(),
             )
         })?;
 

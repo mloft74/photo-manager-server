@@ -32,7 +32,10 @@ pub fn make_image_router(
                 ss_mngr.clone(),
             ))
             .merge(paginated::make_paginated_router(persistence_mngr.clone()))
-            .merge(rename::make_rename_router(persistence_mngr.clone()))
+            .merge(rename::make_rename_router(
+                persistence_mngr.clone(),
+                ss_mngr.clone(),
+            ))
             .merge(current::make_current_router(ss_mngr.clone()))
             .merge(resolve::make_resolve_router(ss_mngr.clone()))
             .merge(delete::make_delete_router(persistence_mngr.clone())),

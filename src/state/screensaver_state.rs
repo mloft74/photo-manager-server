@@ -112,13 +112,24 @@ impl Screensaver for ScreensaverState {
         }
     }
 
+    fn rename_image(&mut self, old_name: &str, new_name: &str) -> Result<(), ()> {
+        let idx = self.images.iter().position(|i| i.file_name == old_name);
+        match idx {
+            None => Err(()),
+            Some(idx) => {
+                self.images[idx].file_name = new_name.to_string();
+                Ok(())
+            }
+        }
+    }
+
     fn clear(&mut self) {
         self.images.clear();
         self.current_index = None;
     }
 
-    fn replace<T: Iterator<Item = Image>>(&mut self, values: T) {
-        let mut values: Vec<_> = values.collect();
+    fn replace(&mut self, values: HashMap<String, Image>) {
+        let mut values: Vec<_> = values.into_iter().map(|v| v.1).collect();
         if values.is_empty() {
             self.current_index = None;
         } else {
@@ -211,7 +222,7 @@ mod tests {
         let img = mk_img(1);
 
         // Act
-        sut.replace(vec![img.clone()].into_iter());
+        sut.replace([(img.file_name.clone(), img.clone())].into());
 
         // Assert
         let curr = sut.current().expect("curr should have been inserted");
@@ -226,7 +237,7 @@ mod tests {
         // Act
         sut.insert(mk_img(1))
             .expect("sut should not already have the inserted image");
-        sut.replace(vec![].into_iter());
+        sut.replace(HashMap::new());
 
         // Assert
         assert!(sut.current().is_none());
@@ -307,7 +318,7 @@ mod tests {
         let mut sut = mk_sut();
         let min = 1;
         let max = 3;
-        let imgs = (min..max).map(mk_img);
+        let imgs = mk_imgs(min..max);
 
         // Act
         sut.replace(imgs.clone());
@@ -334,7 +345,7 @@ mod tests {
         let mut sut = mk_sut();
         let min = 1;
         let max = 3;
-        let imgs = (min..max).map(mk_img);
+        let imgs = mk_imgs(min..max);
 
         // Act
         sut.replace(imgs.clone());

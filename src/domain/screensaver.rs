@@ -39,9 +39,14 @@ pub trait Screensaver {
     /// The key should be the file name of the image the key refers to.
     fn insert_many(&mut self, values: HashMap<String, Image>) -> Result<(), Vec<String>>;
 
-    /// Removes all `Image`s from the internal structure.
+    /// Renames an image.
+    /// Returns an `Err` if the `old_name` is not found.
+    fn rename_image(&mut self, old_name: &str, new_name: &str) -> Result<(), ()>;
+
+    /// Removes all images from the internal structure.
     fn clear(&mut self);
 
-    /// Shuffles the given `Image`s and replaces the images in the internal structure with the `Image`s.
-    fn replace<T: Iterator<Item = Image>>(&mut self, values: T);
+    /// Shuffles the given `Image`s and replaces the images in the internal structure.
+    /// The key should be the file name of the image the key refers to.
+    fn replace(&mut self, values: HashMap<String, Image>);
 }
