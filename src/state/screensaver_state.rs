@@ -150,7 +150,7 @@ mod tests {
     }
 
     #[test]
-    fn is_none_when_created() {
+    fn current_is_none_when_created() {
         // Arrange
         let sut = mk_sut();
 
@@ -159,7 +159,7 @@ mod tests {
     }
 
     #[test]
-    fn is_some_after_insert() {
+    fn current_is_some_after_insert() {
         // Arrange
         let mut sut = mk_sut();
         let img = mk_img(1);
@@ -170,6 +170,34 @@ mod tests {
         // Assert
         let curr = sut.current().expect("curr should have been inserted");
         assert_eq!(curr, img);
+    }
+
+    #[test]
+    fn current_is_some_after_non_empty_replace() {
+        // Arrange
+        let mut sut = mk_sut();
+        let img = mk_img(1);
+
+        // Act
+        sut.replace(vec![img.clone()].into_iter());
+
+        // Assert
+        let curr = sut.current().expect("curr should have been inserted");
+        assert_eq!(curr, img);
+    }
+
+    #[test]
+    fn current_is_none_after_empty_replace() {
+        // Arrange
+        let mut sut = mk_sut();
+
+        // Act
+        sut.replace(vec![mk_img(1)].into_iter());
+        sut.replace(vec![].into_iter());
+
+        // Assert
+        let curr = sut.current();
+        assert!(curr.is_none());
     }
 
     #[test]
