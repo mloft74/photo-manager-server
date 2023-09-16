@@ -8,9 +8,8 @@ use crate::{
     domain::actions::image::RenameImage,
 };
 
-pub fn make_rename_router(
-    ri: impl 'static + Clone + Send + Sync + RenameImage,
-) -> Router {
+// TODO: update ss_mngr here
+pub fn make_rename_router(ri: impl 'static + Clone + Send + Sync + RenameImage) -> Router {
     Router::new().route("/rename", post(|body| rename_image(body, ri)))
 }
 
@@ -39,8 +38,7 @@ async fn rename_image(
         )
     })?;
 
-    ri
-        .rename_image(&input.old_name, &input.new_name)
+    ri.rename_image(&input.old_name, &input.new_name)
         .await
         .map_err(|e| {
             (

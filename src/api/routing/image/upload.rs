@@ -48,6 +48,7 @@ enum UploadImageError {
     FileFieldErr(FileFieldValidationError),
     ImageAlreadyExists,
     FailedToFetchDimensions(FetchImageDimensionsError),
+    FailedToInsertImage,
     GeneralError(String),
 }
 
@@ -106,7 +107,12 @@ async fn upload_image(
         )
     })?;
 
-    ss_mngr.insert(image);
+    ss_mngr.insert(image).map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            UploadImageError::FailedToInsertImage.to_json_string(),
+        )
+    })?;
 
     Ok(())
 }

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::domain::models::Image;
 
 #[derive(PartialEq, Eq, Debug)]
@@ -10,6 +12,13 @@ pub enum ResolveState {
     NoImages,
 }
 
+// Invariants:
+// - Implementors contain no duplicate images according to the image file name.
+// - Implementors never return the same image from `current` across calls to `resolve`.
+//   - E.G. `current` returns an image named "first", then "first" is resolved,
+//     implementors can not then return "first" from `current` until another
+//     image is successfully resolved.
+//   - An exception is made when implementors can only return a single image.
 pub trait Screensaver {
     /// Returns the current image if it exists.
     fn current(&self) -> Option<Image>;
@@ -20,10 +29,15 @@ pub trait Screensaver {
     fn resolve(&mut self, file_name: &str) -> ResolveState;
 
     /// Inserts an `Image` into a random location in the internal structure.
-    fn insert(&mut self, value: Image);
+    /// Returns `Err` if the screensaver already contains an image with the same name.
+    /// If `Err`, no modifications were made to the internals.
+    fn insert(&mut self, value: Image) -> Result<(), ()>;
 
     /// Inserts the given `Image`s into random locations in the internal structure.
-    fn insert_many<T: Iterator<Item = Image>>(&mut self, values: T);
+    /// Returns `Err` with any image names that are already contained in the
+    /// If `Err`, no modifications were made to the internals.
+    /// The key should be the file name of the image the key refers to.
+    fn insert_many(&mut self, values: HashMap<String, Image>) -> Result<(), Vec<String>>;
 
     /// Removes all `Image`s from the internal structure.
     fn clear(&mut self);

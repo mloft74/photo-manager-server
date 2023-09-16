@@ -1,4 +1,7 @@
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex, MutexGuard},
+};
 
 use crate::{
     domain::{
@@ -41,12 +44,12 @@ impl Screensaver for ScreensaverManager {
         self.acquire_lock().resolve(file_name)
     }
 
-    fn insert(&mut self, value: Image) {
+    fn insert(&mut self, value: Image) -> Result<(), ()> {
         self.acquire_lock().insert(value)
     }
 
-    fn insert_many<T: Iterator<Item = Image>>(&mut self, values: T) {
-        self.acquire_lock().insert_many(values);
+    fn insert_many(&mut self, values: HashMap<String, Image>) -> Result<(), Vec<String>> {
+        self.acquire_lock().insert_many(values)
     }
 
     fn clear(&mut self) {

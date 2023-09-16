@@ -1,3 +1,5 @@
+use std::collections::{HashMap, HashSet};
+
 use rand::{seq::SliceRandom, thread_rng, Rng, RngCore};
 
 use crate::domain::{
@@ -6,9 +8,9 @@ use crate::domain::{
 };
 
 // Invariants:
-// - If images is empty, current_index is None, otherwise Some.
-// - If current_index is Some, the value is always within range.
-// - The last image of the current iteration of images is not the first image of the next iteration of images.
+// - If `images` is empty, `current_index` is `None`, otherwise `Some`.
+// - If `current_index` is `Some`, the value is always within range.
+// - The last image of the current iteration of `images` is not the first image of the next iteration of `images`.
 //   - Only applies when more than 1 image is held.
 pub struct ScreensaverState {
     /// The images for the current iteration of the screensaver.
@@ -80,15 +82,33 @@ impl Screensaver for ScreensaverState {
         }
     }
 
-    fn insert(&mut self, value: Image) {
-        let mut rng = thread_rng();
-        self.insert_impl(&mut rng, value)
+    fn insert(&mut self, value: Image) -> Result<(), ()> {
+        if self.images.iter().any(|x| x.file_name == value.file_name) {
+            Err(())
+        } else {
+            let mut rng = thread_rng();
+            self.insert_impl(&mut rng, value);
+            Ok(())
+        }
     }
 
-    fn insert_many<T: Iterator<Item = Image>>(&mut self, values: T) {
-        let mut rng = thread_rng();
-        for value in values {
-            self.insert_impl(&mut rng, value);
+    fn insert_many(&mut self, values: HashMap<String, Image>) -> Result<(), Vec<String>> {
+        let names: HashSet<_> = values.keys().collect();
+        let conflicts = self.images.iter().fold(vec![], |mut acc, img| {
+            if names.iter().any(|n| **n == img.file_name) {
+                acc.push(img.file_name.clone());
+            }
+            acc
+        });
+        if conflicts.is_empty() {
+            let mut rng = thread_rng();
+            for value in values.into_values() {
+                self.insert_impl(&mut rng, value);
+            }
+
+            Ok(())
+        } else {
+            Err(conflicts)
         }
     }
 
@@ -134,6 +154,8 @@ fn ensure_different_next_image(curr_name: &str, images: &mut [Image], rng: &mut 
 
 #[cfg(test)]
 mod tests {
+    use std::ops::Range;
+
     use super::*;
 
     /// Exists to easily hide the impl behind the trait,
@@ -148,6 +170,14 @@ mod tests {
             width: x,
             height: x,
         }
+    }
+
+    fn mk_imgs(r: Range<u32>) -> HashMap<String, Image> {
+        r.map(|i| {
+            let img = mk_img(i);
+            (img.file_name.clone(), img)
+        })
+        .collect()
     }
 
     #[test]
@@ -166,7 +196,8 @@ mod tests {
         let img = mk_img(1);
 
         // Act
-        sut.insert(img.clone());
+        sut.insert(img.clone())
+            .expect("sut should not already have img");
 
         // Assert
         let curr = sut.current().expect("curr should have been inserted");
@@ -193,7 +224,8 @@ mod tests {
         let mut sut = mk_sut();
 
         // Act
-        sut.insert(mk_img(1));
+        sut.insert(mk_img(1))
+            .expect("sut should not already have the inserted image");
         sut.replace(vec![].into_iter());
 
         // Assert
@@ -206,7 +238,8 @@ mod tests {
         let mut sut = mk_sut();
 
         // Act
-        sut.insert(mk_img(1));
+        sut.insert(mk_img(1))
+            .expect("sut should not already have the inserted image");
         sut.clear();
 
         // Assert
@@ -220,8 +253,10 @@ mod tests {
 
         // Act
         // Inserting mutliple images logically allows for multiple currents if sut works incorrectly.
-        sut.insert(mk_img(1));
-        sut.insert(mk_img(2));
+        sut.insert(mk_img(1))
+            .expect("sut should not already have the inserted image");
+        sut.insert(mk_img(2))
+            .expect("sut should not already have the inserted image");
 
         // Assert
         let a = sut.current().expect("image should have been inserted");
@@ -237,10 +272,12 @@ mod tests {
         // Act
         let max = 11;
         for x in 1..max {
-            sut.insert(mk_img(x));
+            sut.insert(mk_img(x))
+                .expect("sut should not already have the inserted image");
         }
         let a = sut.current().expect("image should have been inserted");
-        sut.insert(mk_img(max));
+        sut.insert(mk_img(max))
+            .expect("sut should not already have the inserted image");
 
         // Assert
         let b = sut.current().expect("image should have been inserted");
@@ -253,9 +290,11 @@ mod tests {
         let mut sut = mk_sut();
 
         // Act
-        sut.insert_many((1..11).map(mk_img));
+        sut.insert_many(mk_imgs(1..11))
+            .expect("sut should not already have the inserted images");
         let a = sut.current().expect("image should have been inserted");
-        sut.insert_many((11..15).map(mk_img));
+        sut.insert_many(mk_imgs(11..15))
+            .expect("sut should not already have the inserted images");
 
         // Assert
         let b = sut.current().expect("image should have been inserted");
@@ -323,7 +362,8 @@ mod tests {
 
         // Act
         for x in 1..11 {
-            sut.insert(mk_img(x));
+            sut.insert(mk_img(x))
+                .expect("sut should not already have the inserted image");
         }
 
         // No Assert, testing for panic above.
@@ -335,7 +375,8 @@ mod tests {
         let mut sut = mk_sut();
 
         // Act
-        sut.insert_many((1..11).map(mk_img));
+        sut.insert_many(mk_imgs(1..11))
+            .expect("sut should not already have the inserted images");
 
         // No Assert, testing for panic above.
     }
@@ -358,7 +399,8 @@ mod tests {
         let mut sut = mk_sut();
 
         // Act
-        sut.insert(mk_img(1));
+        sut.insert(mk_img(1))
+            .expect("sut should not already have the inserted image");
         let res = sut.resolve("does not exist");
 
         // Assert
@@ -372,7 +414,8 @@ mod tests {
         let img = mk_img(1);
 
         // Act
-        sut.insert(img.clone());
+        sut.insert(img.clone())
+            .expect("sut should not already have img");
         let res = sut.resolve(&img.file_name);
 
         // Assert
