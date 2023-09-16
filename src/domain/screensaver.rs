@@ -1,5 +1,6 @@
 use crate::domain::models::Image;
 
+#[derive(PartialEq, Eq, Debug)]
 pub enum ResolveState {
     /// The image being resolved is not the current image of the manager.
     NotCurrent,

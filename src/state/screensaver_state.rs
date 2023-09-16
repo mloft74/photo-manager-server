@@ -326,4 +326,43 @@ mod tests {
 
         // No Assert, testing for panic above.
     }
+
+    #[test]
+    fn resolve_no_images() {
+        // Arrange
+        let mut sut = mk_sut();
+
+        // Act
+        let res = sut.resolve("does not exist");
+
+        // Assert
+        assert_eq!(res, ResolveState::NoImages);
+    }
+
+    #[test]
+    fn resolve_not_current() {
+        // Arrange
+        let mut sut = mk_sut();
+
+        // Act
+        sut.insert(mk_img(1));
+        let res = sut.resolve("does not exist");
+
+        // Assert
+        assert_eq!(res, ResolveState::NotCurrent);
+    }
+
+    #[test]
+    fn resolve_resolved() {
+        // Arrange
+        let mut sut = mk_sut();
+        let img = mk_img(1);
+
+        // Act
+        sut.insert(img.clone());
+        let res = sut.resolve(&img.file_name);
+
+        // Assert
+        assert_eq!(res, ResolveState::Resolved);
+    }
 }
