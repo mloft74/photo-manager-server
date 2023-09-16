@@ -13,9 +13,6 @@ pub trait Screensaver {
     /// Returns the current image if it exists.
     fn current(&self) -> Option<Image>;
 
-    /// Returns the next image if it exists.
-    fn next(&self) -> Option<Image>;
-
     /// Resolves an image of the given name.
     /// If the name being resolved isn't the current image,
     /// or if there are no images,nothing happens.

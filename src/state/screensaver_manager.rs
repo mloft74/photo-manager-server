@@ -37,10 +37,6 @@ impl Screensaver for ScreensaverManager {
         self.acquire_lock().current()
     }
 
-    fn next(&self) -> Option<Image> {
-        self.acquire_lock().next()
-    }
-
     fn resolve(&mut self, file_name: &str) -> ResolveState {
         self.acquire_lock().resolve(file_name)
     }
