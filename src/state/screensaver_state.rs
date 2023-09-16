@@ -207,6 +207,21 @@ mod tests {
     }
 
     #[test]
+    fn current_is_same_from_multiple_current_and_insert_many_calls() {
+        // Arrange
+        let mut sut = mk_sut();
+
+        // Act
+        sut.insert_many((1..11).map(mk_img));
+        let a = sut.current().expect("image should have been inserted");
+        sut.insert_many((11..15).map(mk_img));
+
+        // Assert
+        let b = sut.current().expect("image should have been inserted");
+        assert_eq!(a, b);
+    }
+
+    #[test]
     fn can_insert_more_than_2_images() {
         // Arrange
         let mut sut = mk_sut();
