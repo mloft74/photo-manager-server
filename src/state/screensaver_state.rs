@@ -128,3 +128,41 @@ fn ensure_different_next_image(curr_name: &str, images: &mut [Image], rng: &mut 
         images.swap(0, new_idx);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Exists to easily hide the impl behind the trait,
+    /// forcing tests to only test the public api.
+    fn mk_sut() -> impl Screensaver {
+        ScreensaverState::new()
+    }
+
+    #[test]
+    fn is_none_when_created() {
+        // Arrange
+        let sut = mk_sut();
+
+        // Assert
+        assert!(sut.current().is_none());
+    }
+
+    #[test]
+    fn is_some_after_insert() {
+        // Arrange
+        let mut sut = mk_sut();
+        let img = Image {
+            file_name: "test".to_string(),
+            width: 1,
+            height: 1,
+        };
+
+        // Act
+        sut.insert(img.clone());
+
+        // Assert
+        let curr = sut.current().expect("curr should have been inserted");
+        assert_eq!(curr, img);
+    }
+}
