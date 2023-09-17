@@ -49,10 +49,6 @@ impl ScreensaverState {
         }
     }
 
-    fn index_by_file_name(&self, file_name: &str) -> Option<usize> {
-        self.images.iter().position(|i| i.file_name == file_name)
-    }
-
     /// Resets `current_index` to 0 and shuffles `images`.
     /// This can only be called if `images` is not empty.
     fn shuffle(&mut self, rng: &mut impl RngCore) {
@@ -121,7 +117,7 @@ impl Screensaver for ScreensaverState {
     }
 
     fn rename_image(&mut self, old_name: &str, new_name: &str) -> Result<(), ()> {
-        let idx = self.index_by_file_name(old_name);
+        let idx = index_by_file_name(&self.images, old_name);
         match idx {
             None => Err(()),
             Some(idx) => {
@@ -132,7 +128,7 @@ impl Screensaver for ScreensaverState {
     }
 
     fn delete_image(&mut self, file_name: &str) -> Result<(), ()> {
-        let idx = self.index_by_file_name(file_name);
+        let idx = index_by_file_name(&self.images, file_name);
         match idx {
             None => Err(()),
             Some(idx) => {
@@ -165,11 +161,13 @@ impl Screensaver for ScreensaverState {
     }
 
     fn replace(&mut self, values: HashMap<String, Image>) {
-        self.images = values.into_iter().map(|v| v.1).collect();
-        if self.images.is_empty() {
+        let values: Vec<_> = values.into_iter().map(|v| v.1).collect();
+        if values.is_empty() {
             self.current_index = None;
+            self.images = values;
         } else {
             let curr_name = self.current().map(|e| e.file_name);
+            self.images = values;
 
             let mut rng = thread_rng();
             self.shuffle(&mut rng);
@@ -194,6 +192,10 @@ fn ensure_different_next_image(curr_name: &str, images: &mut [Image], rng: &mut 
         let new_idx = rng.gen_range(first_swap_idx..len);
         images.swap(0, new_idx);
     }
+}
+
+fn index_by_file_name(images: &[Image], file_name: &str) -> Option<usize> {
+    images.iter().position(|i| i.file_name == file_name)
 }
 
 #[cfg(test)]
@@ -345,7 +347,6 @@ mod tests {
         assert_eq!(a, b);
     }
 
-    // TODO: fix replace for this
     #[test]
     fn current_is_different_after_replace() {
         // Arrange
