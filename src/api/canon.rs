@@ -110,7 +110,12 @@ pub async fn update_canon(
         .await
         .map_err(UpdateCanonError::FailedToUpdateCanon)?;
 
-    mngr.replace(images.into_iter());
+    mngr.replace(
+        images
+            .into_iter()
+            .map(|i| (i.file_name.clone(), i))
+            .collect(),
+    );
 
     Ok(())
 }

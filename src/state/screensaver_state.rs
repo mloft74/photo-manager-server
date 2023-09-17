@@ -139,7 +139,7 @@ impl Screensaver for ScreensaverState {
                 let curr_idx = self.current_index.expect(
                     "current index should be valid since a match for the file name was found",
                 );
-                let curr_name = &self.images[curr_idx].file_name;
+                let curr_name = self.images[curr_idx].file_name.clone();
                 if idx < curr_idx {
                     self.current_index = Some(curr_idx - 1);
                 }
@@ -151,7 +151,7 @@ impl Screensaver for ScreensaverState {
                 if curr_idx >= len {
                     let mut rng = thread_rng();
                     self.shuffle(&mut rng);
-                    ensure_different_next_image(curr_name, &mut self.images, &mut rng);
+                    ensure_different_next_image(&curr_name, &mut self.images, &mut rng);
                 }
 
                 Ok(())
@@ -195,6 +195,10 @@ fn ensure_different_next_image(curr_name: &str, images: &mut [Image], rng: &mut 
         images.swap(0, new_idx);
     }
 }
+
+// TODO: write tests for `delete_image`
+// TODO: write tests for `rename_image`
+// TODO: double check test cases after uniqueness refactor
 
 #[cfg(test)]
 mod tests {
