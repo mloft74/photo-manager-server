@@ -8,7 +8,6 @@ use crate::{
     domain::{actions::image::RenameImage, screensaver::Screensaver},
 };
 
-// TODO: update ss_mngr here
 pub fn make_rename_router(
     ri: impl 'static + Clone + Send + Sync + RenameImage,
     ss_mngr: impl 'static + Clone + Send + Sync + Screensaver,
