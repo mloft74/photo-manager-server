@@ -520,6 +520,9 @@ mod tests {
 
         assert!(!set.contains(&img_name));
     }
+
+    // TODO: write test to delete current image, see what happens
+    // TODO: write test to delete current image when at the end of the list, see what happens
 }
 
 // TODO: write tests for `delete_image`
