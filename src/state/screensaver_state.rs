@@ -144,7 +144,7 @@ impl Screensaver for ScreensaverState {
                     self.current_index = Some(curr_idx - 1);
                 }
 
-                self.images.remove(curr_idx);
+                self.images.remove(idx);
 
                 let curr_idx = self.current_index.expect("current index should be valid");
                 let len = self.images.len();
@@ -195,10 +195,6 @@ fn ensure_different_next_image(curr_name: &str, images: &mut [Image], rng: &mut 
         images.swap(0, new_idx);
     }
 }
-
-// TODO: write tests for `delete_image`
-// TODO: write tests for `rename_image`
-// TODO: double check test cases after uniqueness refactor
 
 #[cfg(test)]
 mod tests {
@@ -349,6 +345,7 @@ mod tests {
         assert_eq!(a, b);
     }
 
+    // TODO: fix replace for this
     #[test]
     fn current_is_different_after_replace() {
         // Arrange
@@ -469,4 +466,62 @@ mod tests {
         // Assert
         assert_eq!(res, ResolveState::Resolved);
     }
+
+    #[test]
+    fn delete_is_err_when_no_images() {
+        // Arrange
+        let mut sut = mk_sut();
+
+        // Act
+        let res = sut.delete_image("does not exist");
+
+        // Assert
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn delete_is_err_when_image_not_contained() {
+        // Arrange
+        let mut sut = mk_sut();
+        sut.replace(mk_imgs(1..11));
+
+        // Act
+        let res = sut.delete_image("does not exist");
+
+        // Assert
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn screensaver_does_not_contain_image_after_delete() {
+        // Arrange
+        let mut sut = mk_sut();
+        let img = mk_img(1);
+        let img_name = img.file_name.clone();
+        sut.replace(mk_imgs(2..11));
+        sut.insert(img)
+            .expect("sut should not contain image with same name");
+
+        // Act
+        let res = sut.delete_image(&img_name);
+
+        // Assert
+        assert!(res.is_ok());
+        let mut set = HashSet::new();
+        loop {
+            let curr_name = sut.current().expect("sut should have images").file_name;
+            if set.contains(&curr_name) {
+                break;
+            } else {
+                sut.resolve(&curr_name);
+                set.insert(curr_name);
+            }
+        }
+
+        assert!(!set.contains(&img_name));
+    }
 }
+
+// TODO: write tests for `delete_image`
+// TODO: write tests for `rename_image`
+// TODO: double check test cases after uniqueness refactor
