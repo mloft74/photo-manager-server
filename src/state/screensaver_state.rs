@@ -583,7 +583,6 @@ mod tests {
         assert!(set.contains(&curr.file_name));
     }
 
-    // TODO: write test to delete a resolved image, see what happens
     #[test]
     fn deleting_resolved_image_does_not_change_current() {
         // Arrange
@@ -603,7 +602,29 @@ mod tests {
         assert_eq!(a, b);
     }
 
-    // TODO: write test to delete a non-resolved, non-current image, see what happens
+    #[test]
+    fn deleting_unresolved_not_current_image_does_not_change_current() {
+        // Arrange
+        let mut sut = mk_sut();
+        let imgs = mk_imgs(1..11);
+        let mut names: HashSet<_> = imgs.keys().cloned().collect();
+        sut.replace(imgs);
+        let curr = sut.current().expect("sut should have images");
+        names.remove(&curr.file_name);
+        sut.resolve(&curr.file_name);
+        let curr = sut.current().expect("sut should have images");
+        names.remove(&curr.file_name);
+
+        // Act
+        let to_remove = names.iter().next().expect("should have name available");
+        let res = sut.delete_image(to_remove);
+
+        // Assert
+        assert!(res.is_ok());
+
+        let new_curr = sut.current().expect("sut should have images");
+        assert_eq!(curr, new_curr);
+    }
 
     // TODO: write an insert test that verifies that the image/images were inserted
 }
