@@ -522,8 +522,35 @@ mod tests {
         assert!(!set.contains(&img_name));
     }
 
-    // TODO: write test to delete current image, see what happens
+    #[test]
+    fn delete_current_image_not_at_end_changes_current() {
+        // Poor man's parameterized test.
+        let max_num = 4;
+        for resolve_num in 0..max_num {
+            // Arrange
+            let mut sut = mk_sut();
+            sut.replace(mk_imgs(1..(max_num * 2)));
+            for _ in 0..resolve_num {
+                let curr = sut.current().expect("images should have been inserted");
+                sut.resolve(&curr.file_name);
+            }
+            let curr = sut.current().expect("images should still remain");
+
+            // Act
+            let res = sut.delete_image(&curr.file_name);
+
+            // Assert
+            assert!(res.is_ok());
+
+            let new_curr = sut.current().expect("images should still remain");
+            assert_ne!(curr, new_curr, "resolve_num: {}", resolve_num);
+        }
+    }
+
+    // TODO: write test to delete current image when in the middle of the list, see what happens
     // TODO: write test to delete current image when at the end of the list, see what happens
+    // TODO: write test to delete a resolved image, see what happens
+    // TODO: write test to delete a non-resolved, non-current image, see what happens
 }
 
 // TODO: write tests for `delete_image`
