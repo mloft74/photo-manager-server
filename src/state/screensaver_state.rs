@@ -626,7 +626,83 @@ mod tests {
         assert_eq!(curr, new_curr);
     }
 
-    // TODO: write an insert test that verifies that the image/images were inserted
+    #[test]
+    fn contains_image_after_insert() {
+        // Arrange
+        let mut sut = mk_sut();
+        sut.replace(mk_imgs(1..11));
+        let img = mk_img(11);
+        let name = img.file_name.clone();
+
+        // Act
+        let res = sut.insert(img);
+
+        // Assert
+        assert!(res.is_ok());
+
+        let mut set = HashSet::new();
+        loop {
+            let curr_name = sut.current().expect("sut should contain images").file_name;
+            if set.contains(&curr_name) {
+                break;
+            }
+            sut.resolve(&curr_name);
+            set.insert(curr_name);
+        }
+
+        assert!(set.contains(&name));
+    }
+
+    #[test]
+    fn contains_images_after_insert() {
+        // Arrange
+        let mut sut = mk_sut();
+        sut.replace(mk_imgs(1..11));
+        let imgs = mk_imgs(11..15);
+        let names: HashSet<_> = imgs.keys().cloned().collect();
+
+        // Act
+        let res = sut.insert_many(imgs);
+
+        // Assert
+        assert!(res.is_ok());
+
+        let mut set = HashSet::new();
+        loop {
+            let curr_name = sut.current().expect("sut should contain images").file_name;
+            if set.contains(&curr_name) {
+                break;
+            }
+            sut.resolve(&curr_name);
+            set.insert(curr_name);
+        }
+
+        assert!(set.is_superset(&names));
+    }
+
+    #[test]
+    fn contains_images_after_replace() {
+        // Arrange
+        let mut sut = mk_sut();
+        let imgs = mk_imgs(1..11);
+        let names: HashSet<_> = imgs.keys().cloned().collect();
+
+        // Act
+        sut.replace(imgs);
+
+        // Assert
+        let mut set = HashSet::new();
+        loop {
+            let curr_name = sut.current().expect("sut should contain images").file_name;
+            if set.contains(&curr_name) {
+                break;
+            }
+            sut.resolve(&curr_name);
+            set.insert(curr_name);
+        }
+
+        assert_eq!(names, set);
+    }
 }
 
 // TODO: write tests for `rename_image`
