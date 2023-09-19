@@ -426,7 +426,16 @@ mod tests {
         // No Assert, testing for panic above.
     }
 
-    // TODO: can_replace_more_than_2_images
+    #[test]
+    fn can_replace_more_than_2_images() {
+        // Arrange
+        let mut sut = mk_sut();
+
+        // Act
+        sut.replace(mk_imgs(1..11));
+
+        // No Assert, testing for panic above.
+    }
 
     #[test]
     fn resolve_no_images() {
@@ -750,8 +759,6 @@ mod tests {
         // Assert
         assert!(res.is_err());
     }
-
-    // TODO: write a replace test that checks for disjoint set when replacing with all new images
 }
 
 // TODO: double check test cases after uniqueness refactor
