@@ -426,6 +426,8 @@ mod tests {
         // No Assert, testing for panic above.
     }
 
+    // TODO: can_replace_more_than_2_images
+
     #[test]
     fn resolve_no_images() {
         // Arrange
@@ -654,7 +656,7 @@ mod tests {
     }
 
     #[test]
-    fn contains_images_after_insert() {
+    fn contains_images_after_insert_many() {
         // Arrange
         let mut sut = mk_sut();
         sut.replace(mk_imgs(1..11));
@@ -703,7 +705,53 @@ mod tests {
 
         assert_eq!(names, set);
     }
+
+    #[test]
+    fn contains_renamed_image() {
+        // Arrange
+        let mut sut = mk_sut();
+        let imgs = mk_imgs(1..11);
+        let names: HashSet<_> = imgs.keys().cloned().collect();
+        sut.replace(imgs);
+
+        // Act
+        let old_name = names.iter().next().expect("names should have items");
+        let new_name = "renamed";
+        let res = sut.rename_image(old_name, new_name);
+
+        // Assert
+        assert!(res.is_ok());
+
+        let mut set = HashSet::new();
+        loop {
+            let curr_name = sut.current().expect("sut should contain images").file_name;
+            if set.contains(&curr_name) {
+                break;
+            }
+            sut.resolve(&curr_name);
+            set.insert(curr_name);
+        }
+
+        assert!(names.contains(old_name));
+        assert!(!names.contains(new_name));
+        assert!(set.contains(new_name));
+        assert!(!set.contains(old_name));
+    }
+
+    #[test]
+    fn is_error_when_old_name_is_not_contained() {
+        // Arrange
+        let mut sut = mk_sut();
+        sut.replace(mk_imgs(1..11));
+
+        // Act
+        let res = sut.rename_image("does not exist", "renamed");
+
+        // Assert
+        assert!(res.is_err());
+    }
+
+    // TODO: write a replace test that checks for disjoint set when replacing with all new images
 }
 
-// TODO: write tests for `rename_image`
 // TODO: double check test cases after uniqueness refactor
