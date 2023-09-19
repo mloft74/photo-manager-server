@@ -268,10 +268,10 @@ mod tests {
     fn current_is_none_after_empty_replace() {
         // Arrange
         let mut sut = mk_sut();
-
-        // Act
         sut.insert(mk_img(1))
             .expect("sut should not already have the inserted image");
+
+        // Act
         sut.replace(HashMap::new());
 
         // Assert
@@ -282,10 +282,10 @@ mod tests {
     fn current_is_none_after_clear() {
         // Arrange
         let mut sut = mk_sut();
-
-        // Act
         sut.insert(mk_img(1))
             .expect("sut should not already have the inserted image");
+
+        // Act
         sut.clear();
 
         // Assert
@@ -311,16 +311,16 @@ mod tests {
     }
 
     #[test]
-    fn current_is_same_from_multiple_current_and_insert_calls() {
+    fn current_is_same_after_insert() {
         // Arrange
         let mut sut = mk_sut();
-
-        // Act
         let max = 11;
         for x in 1..max {
             sut.insert(mk_img(x))
                 .expect("sut should not already have the inserted image");
         }
+
+        // Act
         let a = sut.current().expect("image should have been inserted");
         sut.insert(mk_img(max))
             .expect("sut should not already have the inserted image");
@@ -331,13 +331,13 @@ mod tests {
     }
 
     #[test]
-    fn current_is_same_from_multiple_current_and_insert_many_calls() {
+    fn current_is_same_after_insert_many() {
         // Arrange
         let mut sut = mk_sut();
-
-        // Act
         sut.insert_many(mk_imgs(1..11))
             .expect("sut should not already have the inserted images");
+
+        // Act
         let a = sut.current().expect("image should have been inserted");
         sut.insert_many(mk_imgs(11..15))
             .expect("sut should not already have the inserted images");
@@ -354,8 +354,6 @@ mod tests {
         let min = 1;
         let max = 3;
         let imgs = mk_imgs(min..max);
-
-        // Act
         sut.replace(imgs.clone());
         for _ in min..(max - 1) {
             sut.resolve(
@@ -364,6 +362,8 @@ mod tests {
                     .file_name,
             );
         }
+
+        // Act
         let a = sut
             .current()
             .expect("there should still be a current available");
@@ -381,8 +381,6 @@ mod tests {
         let min = 1;
         let max = 3;
         sut.replace(mk_imgs(min..max));
-
-        // Act
         for _ in min..(max - 1) {
             sut.resolve(
                 &sut.current()
@@ -390,6 +388,8 @@ mod tests {
                     .file_name,
             );
         }
+
+        // Act
         let a = sut
             .current()
             .expect("there should still be a current available");
@@ -760,5 +760,3 @@ mod tests {
         assert!(res.is_err());
     }
 }
-
-// TODO: double check test cases after uniqueness refactor
