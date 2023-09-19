@@ -380,10 +380,9 @@ mod tests {
         let mut sut = mk_sut();
         let min = 1;
         let max = 3;
-        let imgs = mk_imgs(min..max);
+        sut.replace(mk_imgs(min..max));
 
         // Act
-        sut.replace(imgs.clone());
         for _ in min..(max - 1) {
             sut.resolve(
                 &sut.current()
@@ -443,10 +442,10 @@ mod tests {
     fn resolve_not_current() {
         // Arrange
         let mut sut = mk_sut();
-
-        // Act
         sut.insert(mk_img(1))
             .expect("sut should not already have the inserted image");
+
+        // Act
         let res = sut.resolve("does not exist");
 
         // Assert
@@ -458,10 +457,10 @@ mod tests {
         // Arrange
         let mut sut = mk_sut();
         let img = mk_img(1);
-
-        // Act
         sut.insert(img.clone())
             .expect("sut should not already have img");
+
+        // Act
         let res = sut.resolve(&img.file_name);
 
         // Assert
@@ -585,6 +584,25 @@ mod tests {
     }
 
     // TODO: write test to delete a resolved image, see what happens
+    #[test]
+    fn deleting_resolved_image_does_not_change_current() {
+        // Arrange
+        let mut sut = mk_sut();
+        sut.replace(mk_imgs(1..11));
+        let curr = sut.current().expect("sut should have images");
+        sut.resolve(&curr.file_name);
+
+        // Act
+        let a = sut.current().expect("sut should have images");
+        let res = sut.delete_image(&curr.file_name);
+
+        // Assert
+        assert!(res.is_ok());
+
+        let b = sut.current().expect("sut should have images");
+        assert_eq!(a, b);
+    }
+
     // TODO: write test to delete a non-resolved, non-current image, see what happens
 
     // TODO: write an insert test that verifies that the image/images were inserted
