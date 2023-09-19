@@ -10,9 +10,9 @@ use crate::{
 
 pub fn make_delete_router(
     di: impl 'static + Clone + Send + Sync + DeleteImage,
-    ss_mngr: impl 'static + Clone + Send + Sync + Screensaver,
+    screensaver: impl 'static + Clone + Send + Sync + Screensaver,
 ) -> Router {
-    Router::new().route("/delete", post(|body| delete_image(body, di, ss_mngr)))
+    Router::new().route("/delete", post(|body| delete_image(body, di, screensaver)))
 }
 
 #[derive(Deserialize)]
@@ -32,7 +32,7 @@ impl ApiError for DeleteImageError {}
 async fn delete_image(
     Json(input): Json<DeleteInput>,
     di: impl DeleteImage,
-    mut ss_mngr: impl Screensaver,
+    mut screensaver: impl Screensaver,
 ) -> Result<(), (StatusCode, String)> {
     delete_fs(&input).await.map_err(|e| {
         (
@@ -48,7 +48,7 @@ async fn delete_image(
         )
     })?;
 
-    ss_mngr.delete_image(&input.file_name).map_err(|_| {
+    screensaver.delete_image(&input.file_name).map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             DeleteImageError::FailedToDeleteInQueue.to_json_string(),

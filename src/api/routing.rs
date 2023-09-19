@@ -7,14 +7,11 @@ use crate::{persistence::PersistenceManager, state::screensaver_manager::Screens
 mod image;
 mod ping;
 
-pub fn make_api_router(
-    persistence_mngr: &PersistenceManager,
-    ss_mngr: &ScreensaverManager,
-) -> Router {
+pub fn make_api_router(p_mngr: &PersistenceManager, s_mngr: &ScreensaverManager) -> Router {
     Router::new().nest(
         "/api",
         Router::new()
-            .merge(image::make_image_router(persistence_mngr, ss_mngr))
+            .merge(image::make_image_router(p_mngr, s_mngr))
             .merge(ping::make_ping_router()),
     )
 }

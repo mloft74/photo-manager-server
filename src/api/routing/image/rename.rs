@@ -10,9 +10,9 @@ use crate::{
 
 pub fn make_rename_router(
     ri: impl 'static + Clone + Send + Sync + RenameImage,
-    ss_mngr: impl 'static + Clone + Send + Sync + Screensaver,
+    screensaver: impl 'static + Clone + Send + Sync + Screensaver,
 ) -> Router {
-    Router::new().route("/rename", post(|body| rename_image(body, ri, ss_mngr)))
+    Router::new().route("/rename", post(|body| rename_image(body, ri, screensaver)))
 }
 
 #[derive(Serialize)]
@@ -33,7 +33,7 @@ struct RenameInput {
 async fn rename_image(
     Json(input): Json<RenameInput>,
     ri: impl RenameImage,
-    mut ss_mngr: impl Screensaver,
+    mut screensaver: impl Screensaver,
 ) -> Result<(), (StatusCode, String)> {
     rename_fs(&input).await.map_err(|e| {
         (
@@ -51,7 +51,7 @@ async fn rename_image(
             )
         })?;
 
-    ss_mngr
+    screensaver
         .rename_image(&input.old_name, &input.new_name)
         .map_err(|_| {
             (

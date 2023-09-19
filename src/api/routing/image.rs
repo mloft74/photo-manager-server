@@ -15,33 +15,21 @@ mod resolve;
 mod update_canon;
 mod upload;
 
-pub fn make_image_router(
-    persistence_mngr: &PersistenceManager,
-    ss_mngr: &ScreensaverManager,
-) -> Router {
+pub fn make_image_router(p_mngr: &PersistenceManager, s_mngr: &ScreensaverManager) -> Router {
     Router::new().nest(
         "/image",
         Router::new()
-            .merge(upload::make_upload_router(
-                persistence_mngr.clone(),
-                ss_mngr.clone(),
-            ))
-            .merge(get::make_get_router(persistence_mngr.clone()))
+            .merge(upload::make_upload_router(p_mngr.clone(), s_mngr.clone()))
+            .merge(get::make_get_router(p_mngr.clone()))
             .merge(update_canon::make_update_canon_router(
-                persistence_mngr.clone(),
-                ss_mngr.clone(),
+                p_mngr.clone(),
+                s_mngr.clone(),
             ))
-            .merge(paginated::make_paginated_router(persistence_mngr.clone()))
-            .merge(rename::make_rename_router(
-                persistence_mngr.clone(),
-                ss_mngr.clone(),
-            ))
-            .merge(current::make_current_router(ss_mngr.clone()))
-            .merge(resolve::make_resolve_router(ss_mngr.clone()))
-            .merge(delete::make_delete_router(
-                persistence_mngr.clone(),
-                ss_mngr.clone(),
-            )),
+            .merge(paginated::make_paginated_router(p_mngr.clone()))
+            .merge(rename::make_rename_router(p_mngr.clone(), s_mngr.clone()))
+            .merge(current::make_current_router(s_mngr.clone()))
+            .merge(resolve::make_resolve_router(s_mngr.clone()))
+            .merge(delete::make_delete_router(p_mngr.clone(), s_mngr.clone())),
     )
 }
 

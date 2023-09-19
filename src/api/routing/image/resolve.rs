@@ -3,8 +3,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::domain::screensaver::{ResolveState, Screensaver};
 
-pub fn make_resolve_router(mngr: impl 'static + Clone + Send + Sync + Screensaver) -> Router {
-    Router::new().route("/resolve", post(|body| async { resolve(body, mngr) }))
+pub fn make_resolve_router(
+    screensaver: impl 'static + Clone + Send + Sync + Screensaver,
+) -> Router {
+    Router::new().route(
+        "/resolve",
+        post(|body| async { resolve(body, screensaver) }),
+    )
 }
 
 #[derive(Deserialize)]
@@ -24,8 +29,11 @@ enum ResolveStatus {
     Resolved,
 }
 
-fn resolve(Json(input): Json<ResolveInput>, mut mngr: impl Screensaver) -> Json<ResolveResponse> {
-    let x = mngr.resolve(&input.file_name);
+fn resolve(
+    Json(input): Json<ResolveInput>,
+    mut screensaver: impl Screensaver,
+) -> Json<ResolveResponse> {
+    let x = screensaver.resolve(&input.file_name);
     Json(ResolveResponse {
         resolve_status: match x {
             ResolveState::NotCurrent => ResolveStatus::NotCurrent,
