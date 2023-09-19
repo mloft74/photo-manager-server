@@ -523,7 +523,7 @@ mod tests {
     }
 
     #[test]
-    fn delete_current_image_not_at_end_changes_current() {
+    fn deleting_current_image_not_at_end_changes_current() {
         // Poor man's parameterized test.
         let max_num = 4;
         for resolve_num in 0..max_num {
@@ -547,12 +547,48 @@ mod tests {
         }
     }
 
-    // TODO: write test to delete current image when in the middle of the list, see what happens
-    // TODO: write test to delete current image when at the end of the list, see what happens
+    #[test]
+    fn deleting_current_image_at_end_shuffles() {
+        fn insert_into(set: &mut HashSet<String>, name: String) {
+            if set.contains(&name) {
+                panic!("set already contains {}", &name);
+            }
+            set.insert(name);
+        }
+
+        // Arrange
+        let mut sut = mk_sut();
+        let range = 1..11;
+        let resolve_num = range.len() - 1;
+        sut.replace(mk_imgs(range));
+
+        let mut set = HashSet::new();
+        for _ in 0..resolve_num {
+            let curr_name = sut
+                .current()
+                .expect("images should have been inserted")
+                .file_name;
+            sut.resolve(&curr_name);
+            insert_into(&mut set, curr_name);
+        }
+        let curr = sut.current().expect("images should still remain");
+        insert_into(&mut set, curr.file_name.clone());
+
+        // Act
+        let res = sut.delete_image(&curr.file_name);
+
+        // Assert
+        assert!(res.is_ok());
+
+        let curr = sut.current().expect("images should still remain");
+        assert!(set.contains(&curr.file_name));
+    }
+
     // TODO: write test to delete a resolved image, see what happens
     // TODO: write test to delete a non-resolved, non-current image, see what happens
+
+    // TODO: write an insert test that verifies that the image/images were inserted
 }
 
-// TODO: write tests for `delete_image`
 // TODO: write tests for `rename_image`
 // TODO: double check test cases after uniqueness refactor
