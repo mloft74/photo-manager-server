@@ -8,7 +8,6 @@ use crate::persistence::migrator::Migrator;
 mod entities;
 pub mod image;
 mod migrator;
-pub mod persistence_manager;
 
 pub async fn init_persistence() -> PersistenceManager {
     let db_conn = connect().await;

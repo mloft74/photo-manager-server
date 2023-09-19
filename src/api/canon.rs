@@ -101,16 +101,15 @@ impl From<FetchCanonError> for UpdateCanonError {
 }
 
 pub async fn update_canon(
-    update_canon_op: &impl UpdateCanon,
-    mngr: &mut impl Screensaver,
+    uc: &impl UpdateCanon,
+    screensaver: &mut impl Screensaver,
 ) -> Result<(), UpdateCanonError> {
     let images = fetch_canon()?;
-    update_canon_op
-        .update_canon(images.iter())
+    uc.update_canon(images.iter())
         .await
         .map_err(UpdateCanonError::FailedToUpdateCanon)?;
 
-    mngr.replace(
+    screensaver.replace(
         images
             .into_iter()
             .map(|i| (i.file_name.clone(), i))
