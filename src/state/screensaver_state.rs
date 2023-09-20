@@ -99,7 +99,7 @@ impl Screensaver for ScreensaverState {
     fn insert_many(&mut self, values: HashMap<String, Image>) -> Result<(), Vec<String>> {
         let names: HashSet<_> = values.keys().collect();
         let conflicts = self.images.iter().fold(vec![], |mut acc, img| {
-            if names.iter().any(|n| **n == img.file_name) {
+            if names.contains(&img.file_name) {
                 acc.push(img.file_name.clone());
             }
             acc
@@ -163,7 +163,7 @@ impl Screensaver for ScreensaverState {
     }
 
     fn replace(&mut self, values: HashMap<String, Image>) {
-        let values: Vec<_> = values.into_iter().map(|v| v.1).collect();
+        let values: Vec<_> = values.into_values().collect();
         if values.is_empty() {
             self.current_index = None;
             self.images = values;
@@ -456,6 +456,48 @@ mod tests {
         sut.replace(mk_imgs(1..11));
 
         // No Assert, testing for panic above.
+    }
+
+    #[test]
+    fn can_not_insert_same_image() {
+        // Arrange
+        let mut sut = mk_sut();
+        let img = mk_img(1);
+        sut.insert(img.clone())
+            .expect("should not already contain image");
+
+        // Act
+        let res = sut.insert(img);
+
+        // Assert
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn can_not_insert_many_conflicting_images() {
+        // Arrange
+        let mut sut = mk_sut();
+        let min_a = 1;
+        let max_a = 11;
+        sut.insert_many(mk_imgs(min_a..max_a))
+            .expect("should not already contain images");
+
+        // Act
+        let min_b = 5;
+        let max_b = 15;
+        let res = sut.insert_many(mk_imgs(min_b..max_b));
+
+        // Assert
+        let conflicts: HashSet<_> = res
+            .expect_err("there should be conflicting images")
+            .into_iter()
+            .collect();
+        let intersection = min_b..max_a;
+        let expected_conflicts: HashSet<_> = mk_imgs(intersection)
+            .into_values()
+            .map(|i| i.file_name)
+            .collect();
+        assert_eq!(expected_conflicts, conflicts);
     }
 
     #[test]
