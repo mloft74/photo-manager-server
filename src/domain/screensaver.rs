@@ -34,7 +34,7 @@ pub trait Screensaver {
     fn insert(&mut self, value: Image) -> Result<(), ()>;
 
     /// Inserts the given `Image`s into random locations in the internal structure.
-    /// Returns `Err` with any image names that are already contained in the
+    /// Returns `Err` with any image names that are already contained.
     /// If `Err`, no modifications were made to the internals.
     /// The key should be the file name of the image the key refers to.
     fn insert_many(&mut self, values: HashMap<String, Image>) -> Result<(), Vec<String>>;
