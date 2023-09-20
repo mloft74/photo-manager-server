@@ -24,18 +24,18 @@ use crate::{
     domain::{
         actions::image::{FetchImage, SaveImage},
         models::Image,
-        screen_saver_manager::ScreenSaverManager,
+        screensaver::Screensaver,
     },
 };
 
 pub fn make_upload_router(
     image_mngr: impl 'static + Clone + Send + Sync + FetchImage + SaveImage,
-    ss_mngr: ScreenSaverManager,
+    screensaver: impl 'static + Clone + Send + Sync + Screensaver,
 ) -> Router {
     Router::new()
         .route(
             "/upload",
-            post(|body| upload_image(body, image_mngr, ss_mngr)),
+            post(|body| upload_image(body, image_mngr, screensaver)),
         )
         .layer(DefaultBodyLimit::disable())
         .layer(RequestBodyLimitLayer::new(
@@ -48,6 +48,7 @@ enum UploadImageError {
     FileFieldErr(FileFieldValidationError),
     ImageAlreadyExists,
     FailedToFetchDimensions(FetchImageDimensionsError),
+    FailedToInsertImage,
     GeneralError(String),
 }
 
@@ -57,7 +58,7 @@ impl ApiError for UploadImageError {}
 async fn upload_image(
     mut multipart: Multipart,
     image_mngr: impl FetchImage + SaveImage,
-    mut ss_mngr: ScreenSaverManager,
+    mut screensaver: impl Screensaver,
 ) -> Result<(), (StatusCode, String)> {
     let (file_name, file_field) = validate_field(multipart.next_field().await).map_err(|e| {
         (
@@ -106,7 +107,12 @@ async fn upload_image(
         )
     })?;
 
-    ss_mngr.insert(image);
+    screensaver.insert(image).map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            UploadImageError::FailedToInsertImage.to_json_string(),
+        )
+    })?;
 
     Ok(())
 }

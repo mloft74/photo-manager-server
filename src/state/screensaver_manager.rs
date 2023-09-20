@@ -1,0 +1,70 @@
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex, MutexGuard},
+};
+
+use crate::{
+    domain::{
+        models::Image,
+        screensaver::{ResolveState, Screensaver},
+    },
+    state::screensaver_state::ScreensaverState,
+};
+
+#[derive(Clone)]
+pub struct ScreensaverManager {
+    state: Arc<Mutex<ScreensaverState>>,
+}
+
+impl ScreensaverManager {
+    pub fn new() -> Self {
+        Self {
+            state: Arc::new(Mutex::new(ScreensaverState::new())),
+        }
+    }
+
+    /// In this case, we don't care if the mutex is poisoned, as we simply hold a list of values.
+    fn acquire_lock(&self) -> MutexGuard<'_, ScreensaverState> {
+        match self.state.lock() {
+            Ok(guard) => guard,
+            Err(poison) => {
+                tracing::debug!("Accessing poisoned mutex");
+                poison.into_inner()
+            }
+        }
+    }
+}
+
+impl Screensaver for ScreensaverManager {
+    fn current(&self) -> Option<Image> {
+        self.acquire_lock().current()
+    }
+
+    fn resolve(&mut self, file_name: &str) -> ResolveState {
+        self.acquire_lock().resolve(file_name)
+    }
+
+    fn insert(&mut self, value: Image) -> Result<(), ()> {
+        self.acquire_lock().insert(value)
+    }
+
+    fn insert_many(&mut self, values: HashMap<String, Image>) -> Result<(), Vec<String>> {
+        self.acquire_lock().insert_many(values)
+    }
+
+    fn rename_image(&mut self, old_name: &str, new_name: &str) -> Result<(), ()> {
+        self.acquire_lock().rename_image(old_name, new_name)
+    }
+
+    fn delete_image(&mut self, file_name: &str) -> Result<(), ()> {
+        self.acquire_lock().delete_image(file_name)
+    }
+
+    fn clear(&mut self) {
+        self.acquire_lock().clear()
+    }
+
+    fn replace(&mut self, values: HashMap<String, Image>) {
+        self.acquire_lock().replace(values)
+    }
+}

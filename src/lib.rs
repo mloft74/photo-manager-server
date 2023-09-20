@@ -3,8 +3,8 @@ use dotenvy::dotenv;
 mod api;
 mod domain;
 mod persistence;
-
 mod server_tracing;
+mod state;
 
 pub async fn run() {
     dotenv().expect(".env should be loadable from startup");
