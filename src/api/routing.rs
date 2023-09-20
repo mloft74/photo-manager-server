@@ -20,6 +20,7 @@ pub fn make_api_router(
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct ApiErrorWrapper<'a, T: ApiError> {
     error: &'a T,
 }

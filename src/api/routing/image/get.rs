@@ -9,6 +9,7 @@ pub fn make_get_router(fi: impl 'static + Clone + Send + Sync + FetchImage) -> R
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct FindImage {
     file_name: String,
 }

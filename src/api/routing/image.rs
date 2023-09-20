@@ -46,6 +46,7 @@ pub fn make_image_router(
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct ImageResponse {
     file_name: String,
     width: u32,

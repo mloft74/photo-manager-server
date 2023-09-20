@@ -10,6 +10,7 @@ pub fn make_current_router(
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct CurrentResponse {
     image: Option<ImageResponse>,
 }

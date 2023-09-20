@@ -11,6 +11,7 @@ use crate::{
 };
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum FetchCanonError {
     IO(String),
     MultiIO(Vec<String>),
@@ -19,6 +20,7 @@ pub enum FetchCanonError {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FetchDimensionsError {
     file_name: String,
     err: FetchImageDimensionsError,
@@ -89,6 +91,7 @@ fn fetch_dimensions(file_name: &str) -> Result<Image, FetchDimensionsError> {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum UpdateCanonError {
     FetchCanonError(FetchCanonError),
     FailedToUpdateCanon(String),
