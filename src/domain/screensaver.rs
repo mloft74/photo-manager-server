@@ -25,7 +25,7 @@ pub trait Screensaver {
 
     /// Resolves an image of the given name.
     /// If the name being resolved isn't the current image,
-    /// or if there are no images,nothing happens.
+    /// or if there are no images, nothing happens.
     fn resolve(&mut self, file_name: &str) -> ResolveState;
 
     /// Inserts an `Image` into a random location in the internal structure.
