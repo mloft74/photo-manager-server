@@ -144,7 +144,9 @@ impl Screensaver for ScreensaverState {
 
                 let curr_idx = self.current_index.expect("current index should be valid");
                 let len = self.images.len();
-                if curr_idx >= len {
+                if len == 0 {
+                    self.current_index = None;
+                } else if curr_idx >= len {
                     let mut rng = thread_rng();
                     self.shuffle(&mut rng);
                     ensure_different_next_image(&curr_name, &mut self.images, &mut rng);
@@ -398,6 +400,25 @@ mod tests {
         // Assert
         let b = sut.current().expect("replace should have added images");
         assert_ne!(a, b);
+    }
+
+    #[test]
+    fn current_is_none_after_deleting_all_images() {
+        // Arrange
+        let mut sut = mk_sut();
+        let img = mk_img(1);
+        let name = img.file_name.clone();
+        sut.insert(img)
+            .expect("sut should not already have the inserted image");
+
+        // Act
+        let res = sut.delete_image(&name);
+
+        // Assert
+        assert!(res.is_ok());
+
+        let curr = sut.current();
+        assert!(curr.is_none());
     }
 
     #[test]
