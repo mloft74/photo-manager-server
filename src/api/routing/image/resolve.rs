@@ -13,16 +13,19 @@ pub fn make_resolve_router(
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct ResolveInput {
     file_name: String,
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct ResolveResponse {
     resolve_status: ResolveStatus,
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 enum ResolveStatus {
     NoImages,
     NotCurrent,

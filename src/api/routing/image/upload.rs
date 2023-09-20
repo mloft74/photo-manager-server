@@ -44,6 +44,7 @@ pub fn make_upload_router(
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 enum UploadImageError {
     FileFieldErr(FileFieldValidationError),
     ImageAlreadyExists,
@@ -166,6 +167,7 @@ fn path_is_valid(path: &str) -> bool {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 enum FileFieldValidationError {
     FieldErr(String),
     MissingField,

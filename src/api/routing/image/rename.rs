@@ -16,6 +16,7 @@ pub fn make_rename_router(
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 enum RenameImageError {
     Fs(String),
     Persistence(String),
@@ -25,6 +26,7 @@ enum RenameImageError {
 impl ApiError for RenameImageError {}
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct RenameInput {
     old_name: String,
     new_name: String,

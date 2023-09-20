@@ -4,6 +4,7 @@ use serde::Serialize;
 use crate::api::IMAGES_DIR;
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum FetchImageDimensionsError {
     ErrorOpeningImage(String),
     FailedToGetDimensions(String),

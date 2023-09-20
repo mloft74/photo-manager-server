@@ -16,11 +16,13 @@ pub fn make_delete_router(
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct DeleteInput {
     file_name: String,
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 enum DeleteImageError {
     Fs(String),
     Persistence(String),

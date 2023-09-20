@@ -12,6 +12,7 @@ pub fn make_paginated_router(fip: impl 'static + Clone + Send + Sync + FetchImag
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct ImagesPageInput {
     count: u64,
     after: Option<i32>,
@@ -19,12 +20,14 @@ struct ImagesPageInput {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 enum InputOrder {
     NewToOld,
     OldToNew,
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct ImagesPageResponse {
     images: Vec<ImageResponse>,
     cursor: Option<i32>,
