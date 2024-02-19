@@ -10,6 +10,10 @@ mod routing;
 
 const IMAGES_DIR: &str = "/var/lib/photo_manager_server/images";
 
+const SCALED_IMAGE_PREFIX: &str = "photo_manager_server_scaled___";
+const MAX_SCALED_IMAGE_HEIGHT: u32 = 1080;
+const MAX_SCALED_IMAGE_WIDTH: u32 = 1920;
+
 pub async fn make_api_router(persistence_mngr: &PersistenceManager) -> Router {
     let mut screensaver_mngr = ScreensaverManager::new();
     canon::update_canon(&persistence_mngr, &mut screensaver_mngr)
