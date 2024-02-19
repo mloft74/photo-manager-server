@@ -1,4 +1,5 @@
 use dotenvy::dotenv;
+use tokio::net::TcpListener;
 
 mod api;
 mod domain;
@@ -15,8 +16,10 @@ pub async fn run() {
 
     let api_router = api::make_api_router(&persistence_mngr).await;
 
-    axum::Server::bind(&"0.0.0.0:3000".parse().expect("Server URL should be valid"))
-        .serve(api_router.into_make_service())
+    let listener = TcpListener::bind("0.0.0.0:3000")
+        .await
+        .expect("TcpListener should be valid");
+    axum::serve(listener, api_router)
         .await
         .expect("Server should run without errors");
 }

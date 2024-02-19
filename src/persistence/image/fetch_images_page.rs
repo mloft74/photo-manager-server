@@ -1,7 +1,7 @@
 use std::cmp::Reverse;
 
 use async_trait::async_trait;
-use sea_orm::{sea_query::PostgresQueryBuilder, CursorTrait, EntityTrait, QueryOrder};
+use sea_orm::{sea_query::PostgresQueryBuilder, EntityTrait, QueryOrder};
 use tracing::debug;
 
 use crate::{

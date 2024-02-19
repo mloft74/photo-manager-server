@@ -1,15 +1,16 @@
 use axum::{
+    body::{Body, Bytes},
+    extract::Request,
+    http::StatusCode,
     middleware::Next,
     response::{IntoResponse, Response},
 };
-use hyper::{
-    body::{self, Bytes, HttpBody},
-    Body, Request, StatusCode, Uri,
-};
+use http_body_util::BodyExt;
+use hyper::Uri;
 
 pub async fn print_request_response(
     req: Request<Body>,
-    next: Next<Body>,
+    next: Next,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let (parts, body) = req.into_parts();
     let uri = parts.uri.clone();
@@ -27,11 +28,11 @@ pub async fn print_request_response(
 
 async fn buffer_and_print_request<B>(uri: &Uri, body: B) -> Result<Bytes, (StatusCode, String)>
 where
-    B: HttpBody<Data = Bytes>,
+    B: axum::body::HttpBody<Data = Bytes>,
     B::Error: std::fmt::Display,
 {
-    let bytes = match body::to_bytes(body).await {
-        Ok(bytes) => bytes,
+    let bytes = match body.collect().await {
+        Ok(collected) => collected.to_bytes(),
         Err(err) => {
             return Err((
                 StatusCode::BAD_REQUEST,
@@ -53,11 +54,11 @@ async fn buffer_and_print_response<B>(
     body: B,
 ) -> Result<Bytes, (StatusCode, String)>
 where
-    B: HttpBody<Data = Bytes>,
+    B: axum::body::HttpBody<Data = Bytes>,
     B::Error: std::fmt::Display,
 {
-    let bytes = match body::to_bytes(body).await {
-        Ok(bytes) => bytes,
+    let bytes = match body.collect().await {
+        Ok(collected) => collected.to_bytes(),
         Err(err) => {
             return Err((
                 StatusCode::BAD_REQUEST,
