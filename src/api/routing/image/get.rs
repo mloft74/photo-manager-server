@@ -1,5 +1,4 @@
-use axum::{extract::Query, routing::get, Json, Router};
-use hyper::StatusCode;
+use axum::{extract::Query, http::StatusCode, routing::get, Json, Router};
 use serde::Deserialize;
 
 use crate::{api::routing::image::ImageResponse, domain::actions::image::FetchImage};

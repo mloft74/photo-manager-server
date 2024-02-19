@@ -1,12 +1,11 @@
 use axum::{
     body::{Body, Bytes},
     extract::Request,
-    http::StatusCode,
+    http::{StatusCode, Uri},
     middleware::Next,
     response::{IntoResponse, Response},
 };
 use http_body_util::BodyExt;
-use hyper::Uri;
 
 pub async fn print_request_response(
     req: Request<Body>,

@@ -1,5 +1,4 @@
-use axum::{routing::post, Json, Router};
-use hyper::StatusCode;
+use axum::{http::StatusCode, routing::post, Json, Router};
 use serde::{Deserialize, Serialize};
 use tokio::fs;
 

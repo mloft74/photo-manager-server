@@ -1,5 +1,4 @@
-use axum::{routing::post, Router};
-use hyper::StatusCode;
+use axum::{http::StatusCode, routing::post, Router};
 
 use crate::{
     api::{

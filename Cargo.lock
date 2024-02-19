@@ -1650,7 +1650,6 @@ dependencies = [
  "dotenvy",
  "futures",
  "http-body-util",
- "hyper",
  "image",
  "rand",
  "sea-orm",
