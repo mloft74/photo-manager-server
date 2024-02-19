@@ -1,4 +1,4 @@
-use std::{fs, io};
+use std::{ffi::OsString, fs, io};
 
 use serde::Serialize;
 
@@ -15,7 +15,7 @@ use crate::{
 pub enum FetchCanonError {
     IO(String),
     MultiIO(Vec<String>),
-    FileNameConversionError,
+    FileNameConversionsError(Vec<OsString>),
     FetchDimensionsErrors(Vec<FetchDimensionsError>),
 }
 
@@ -47,7 +47,7 @@ impl From<(FetchImageDimensionsError, String)> for FetchDimensionsError {
 fn fetch_canon() -> Result<Vec<Image>, FetchCanonError> {
     fs::create_dir_all(IMAGES_DIR)?;
 
-    let images_dir: Vec<_> = fs::read_dir(IMAGES_DIR)?.collect();
+    let images_dir = fs::read_dir(IMAGES_DIR)?;
     let (oks, errs): (Vec<_>, Vec<_>) = images_dir.into_iter().partition(Result::is_ok);
     if !errs.is_empty() {
         let errs: Vec<_> = errs
@@ -58,25 +58,30 @@ fn fetch_canon() -> Result<Vec<Image>, FetchCanonError> {
         return Err(FetchCanonError::MultiIO(errs));
     }
 
-    let images_dir: Vec<_> = oks.into_iter().map(Result::unwrap).collect();
+    let file_name_results = oks.into_iter().map(|res| {
+        let entry = res.unwrap();
+        let file_name = entry.file_name();
+        let name_opt = file_name.to_str().map(|n| n.to_string());
+        name_opt.ok_or(file_name)
+    });
 
-    let mut oks = Vec::new();
-    let mut errs = Vec::new();
-    for entry in images_dir {
-        let file_name = entry
-            .file_name()
-            .to_str()
-            .ok_or(FetchCanonError::FileNameConversionError)?
-            .to_string();
-        match fetch_dimensions(&file_name) {
-            Ok(v) => oks.push(v),
-            Err(e) => errs.push(e),
-        }
+    let (oks, errs): (Vec<_>, Vec<_>) = file_name_results.partition(Result::is_ok);
+    if !errs.is_empty() {
+        let errs: Vec<_> = errs.into_iter().map(Result::unwrap_err).collect();
+        return Err(FetchCanonError::FileNameConversionsError(errs));
     }
+
+    let image_results = oks
+        .into_iter()
+        .map(Result::unwrap)
+        .map(|n| fetch_dimensions(&n));
+    let (oks, errs): (Vec<_>, Vec<_>) = image_results.partition(Result::is_ok);
     if errs.is_empty() {
-        Ok(oks)
+        Ok(oks.into_iter().map(Result::unwrap).collect())
     } else {
-        Err(FetchCanonError::FetchDimensionsErrors(errs))
+        Err(FetchCanonError::FetchDimensionsErrors(
+            errs.into_iter().map(Result::unwrap_err).collect(),
+        ))
     }
 }
 
