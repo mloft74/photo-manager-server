@@ -95,16 +95,16 @@ pub fn scale_image(image: &Image) -> Result<(), ScaleImageError> {
 }
 
 pub fn scale_images(images: &[Image]) -> Result<(), Vec<ScaleImageError>> {
-    let errors: Vec<_> = images
+    let errs: Vec<_> = images
         .iter()
         .map(scale_image)
         .filter(Result::is_err)
         .map(Result::unwrap_err)
         .collect();
-    if !errors.is_empty() {
-        Err(errors)
-    } else {
+    if errs.is_empty() {
         Ok(())
+    } else {
+        Err(errs)
     }
 }
 

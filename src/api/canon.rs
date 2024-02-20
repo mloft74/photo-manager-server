@@ -1,6 +1,7 @@
 use std::{collections::HashMap, ffi::OsString, fs, io};
 
 use serde::Serialize;
+use tracing::debug;
 
 use crate::{
     api::{
@@ -18,7 +19,7 @@ use crate::{
 pub enum UpdateCanonError {
     FetchCanonError(FetchCanonError),
     FailedToUpdateCanon(String),
-    FailedToRemoveInvalidImages(Vec<String>),
+    FailedToRemoveInvalidImages(Vec<RemoveImageError>),
     FailedToScaleImages(Vec<ScaleImageError>),
 }
 
@@ -28,9 +29,9 @@ impl From<FetchCanonError> for UpdateCanonError {
     }
 }
 
-impl From<Vec<io::Error>> for UpdateCanonError {
-    fn from(value: Vec<io::Error>) -> Self {
-        Self::FailedToRemoveInvalidImages(value.into_iter().map(|e| e.to_string()).collect())
+impl From<Vec<RemoveImageError>> for UpdateCanonError {
+    fn from(value: Vec<RemoveImageError>) -> Self {
+        Self::FailedToRemoveInvalidImages(value)
     }
 }
 
@@ -74,19 +75,33 @@ impl From<(FetchImageDimensionsError, String)> for FetchDimensionsError {
     }
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoveImageError {
+    image_name: String,
+    details: String,
+}
 pub async fn update_canon(
     uc: &impl UpdateCanon,
     screensaver: &mut impl Screensaver,
 ) -> Result<(), UpdateCanonError> {
     let images = fetch_images()?;
+    log_images(&images);
 
     let partition = separate_canon(images);
     let canon = partition.canon.clone();
     let data = pair_canon_with_scaled(partition);
+
+    log_canon_scaled_pair_data(&data);
+
     remove_images(data.scale_without_canon)?;
-    let invalid = find_invalid_scaled(data.pairs);
+
+    let invalid = find_invalid_pairs(data.pairs);
     let (canons_needing_new_scales, invalid_scales): (Vec<_>, Vec<_>) =
         invalid.into_iter().map(|p| (p.canon, p.scale)).unzip();
+    log_needing_new_scales(&canons_needing_new_scales);
+    log_invalid_scales(&invalid_scales);
+
     remove_images(invalid_scales)?;
     let images_needing_scaling: Vec<_> = data
         .canon_without_scale
@@ -107,6 +122,38 @@ pub async fn update_canon(
     );
 
     Ok(())
+}
+
+fn log_images(images: &[Image]) {
+    for image in images.iter() {
+        debug!("found image: {}", &image.file_name);
+    }
+}
+
+fn log_canon_scaled_pair_data(data: &CanonScaledPairData) {
+    for image in data.canon_without_scale.iter() {
+        debug!("found canon without scale: {}", &image.file_name);
+    }
+    for image in data.scale_without_canon.iter() {
+        debug!("found scale without canon: {}", &image.file_name);
+    }
+    for pair in data.pairs.iter() {
+        debug!(
+            "found pair | canon: {}, scale: {}",
+            &pair.canon.file_name, &pair.scale.file_name,
+        );
+    }
+}
+fn log_needing_new_scales(canons_needing_new_scales: &[Image]) {
+    for image in canons_needing_new_scales.iter() {
+        debug!("found canon needing new scale: {}", &image.file_name);
+    }
+}
+
+fn log_invalid_scales(invalid_scales: &[Image]) {
+    for image in invalid_scales.iter() {
+        debug!("found invalid scale: {}", &image.file_name);
+    }
 }
 
 fn fetch_images() -> Result<Vec<Image>, FetchCanonError> {
@@ -206,7 +253,7 @@ fn pair_canon_with_scaled(partition: CanonPartition) -> CanonScaledPairData {
     }
 }
 
-fn find_invalid_scaled(images: Vec<CanonScale>) -> Vec<CanonScale> {
+fn find_invalid_pairs(images: Vec<CanonScale>) -> Vec<CanonScale> {
     images
         .into_iter()
         .filter(|i| {
@@ -223,12 +270,21 @@ fn find_invalid_scaled(images: Vec<CanonScale>) -> Vec<CanonScale> {
         .collect()
 }
 
-fn remove_images(images: Vec<Image>) -> Result<(), Vec<io::Error>> {
-    let results = images.into_iter().map(|i| fs::remove_file(i.file_name));
-    let errs: Vec<_> = results.filter(Result::is_err).collect();
+fn remove_images(images: Vec<Image>) -> Result<(), Vec<RemoveImageError>> {
+    let results = images.into_iter().map(|i| {
+        let path = format!("{}/{}", IMAGES_DIR, &i.file_name);
+        fs::remove_file(path).map_err(|e| RemoveImageError {
+            image_name: i.file_name.clone(),
+            details: e.to_string(),
+        })
+    });
+    let errs: Vec<_> = results
+        .filter(Result::is_err)
+        .map(Result::unwrap_err)
+        .collect();
     if errs.is_empty() {
-        Err(errs.into_iter().map(Result::unwrap_err).collect())
-    } else {
         Ok(())
+    } else {
+        Err(errs)
     }
 }
