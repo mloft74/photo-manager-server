@@ -7,9 +7,13 @@ use image::{
 use serde::Serialize;
 
 use crate::{
-    api::{IMAGES_DIR, SCALED_IMAGE_PREFIX},
+    api::{IMAGES_DIR, MAX_SCALED_IMAGE_HEIGHT, MAX_SCALED_IMAGE_WIDTH, SCALED_IMAGE_PREFIX},
     domain::models::Image,
 };
+
+const F_MAX_SCALED_IMAGE_WIDTH: f32 = MAX_SCALED_IMAGE_WIDTH as f32;
+const F_MAX_SCALED_IMAGE_HEIGHT: f32 = MAX_SCALED_IMAGE_HEIGHT as f32;
+const ASPECT_RATIO: f32 = F_MAX_SCALED_IMAGE_WIDTH / F_MAX_SCALED_IMAGE_HEIGHT;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -62,7 +66,16 @@ pub fn scale_image(image: &Image) -> Result<(), ScaleImageError> {
         error_type: ScaleImageErrorType::ImageError,
     })?;
 
-    let resized = resize(&decoded, 1920, 1080, FilterType::Lanczos3);
+    let resize_dimensions = compute_resize_dimensions(Dimensions {
+        width: image.width,
+        height: image.height,
+    });
+    let resized = resize(
+        &decoded,
+        resize_dimensions.width,
+        resize_dimensions.height,
+        FilterType::Lanczos3,
+    );
     let mut file = File::create(format!(
         "{}/{}{}",
         IMAGES_DIR, SCALED_IMAGE_PREFIX, &image.file_name
@@ -81,10 +94,10 @@ pub fn scale_image(image: &Image) -> Result<(), ScaleImageError> {
     Ok(())
 }
 
-pub fn scale_images(images: &[&Image]) -> Result<(), Vec<ScaleImageError>> {
+pub fn scale_images(images: &[Image]) -> Result<(), Vec<ScaleImageError>> {
     let errors: Vec<_> = images
         .iter()
-        .map(|i| scale_image(i))
+        .map(scale_image)
         .filter(Result::is_err)
         .map(Result::unwrap_err)
         .collect();
@@ -93,4 +106,52 @@ pub fn scale_images(images: &[&Image]) -> Result<(), Vec<ScaleImageError>> {
     } else {
         Ok(())
     }
+}
+
+#[derive(PartialEq, Eq)]
+pub struct Dimensions {
+    pub width: u32,
+    pub height: u32,
+}
+
+pub fn compute_resize_dimensions(dim: Dimensions) -> Dimensions {
+    let dim = FDimensions::from(dim);
+    let aspect_ratio = dim.width / dim.height;
+    if aspect_ratio > ASPECT_RATIO {
+        Dimensions {
+            width: MAX_SCALED_IMAGE_WIDTH,
+            height: compute_resized_height(dim),
+        }
+    } else {
+        Dimensions {
+            width: compute_resized_width(dim),
+            height: MAX_SCALED_IMAGE_HEIGHT,
+        }
+    }
+}
+
+struct FDimensions {
+    width: f32,
+    height: f32,
+}
+
+impl From<Dimensions> for FDimensions {
+    fn from(value: Dimensions) -> Self {
+        Self {
+            width: value.width as f32,
+            height: value.height as f32,
+        }
+    }
+}
+
+fn compute_resized_width(dim: FDimensions) -> u32 {
+    let scale = F_MAX_SCALED_IMAGE_HEIGHT / dim.height;
+    let scaled_width = dim.width * scale;
+    scaled_width.round() as u32
+}
+
+fn compute_resized_height(dim: FDimensions) -> u32 {
+    let scale = F_MAX_SCALED_IMAGE_WIDTH / dim.width;
+    let scaled_height = dim.height * scale;
+    scaled_height.round() as u32
 }

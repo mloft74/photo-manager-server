@@ -4,8 +4,11 @@ use serde::Serialize;
 
 use crate::{
     api::{
-        image_ops::{self, scale_images, FetchImageDimensionsError, ScaleImageError},
-        IMAGES_DIR, MAX_SCALED_IMAGE_HEIGHT, MAX_SCALED_IMAGE_WIDTH, SCALED_IMAGE_PREFIX,
+        image_ops::{
+            self, compute_resize_dimensions, scale_images, Dimensions, FetchImageDimensionsError,
+            ScaleImageError,
+        },
+        IMAGES_DIR, SCALED_IMAGE_PREFIX,
     },
     domain::{actions::image::UpdateCanon, models::Image, screensaver::Screensaver},
 };
@@ -77,13 +80,19 @@ pub async fn update_canon(
 ) -> Result<(), UpdateCanonError> {
     let images = fetch_images()?;
 
-    let CanonPartition { canon, scaled } = separate_canon(images);
-    let ScaledPartition {
-        valid: scaled,
-        invalid,
-    } = separate_valid_scaled(scaled);
-    remove_images(invalid)?;
-    let images_needing_scaling = find_needed_scaling(&scaled, &canon);
+    let partition = separate_canon(images);
+    let canon = partition.canon.clone();
+    let data = pair_canon_with_scaled(partition);
+    remove_images(data.scale_without_canon)?;
+    let invalid = find_invalid_scaled(data.pairs);
+    let (canons_needing_new_scales, invalid_scales): (Vec<_>, Vec<_>) =
+        invalid.into_iter().map(|p| (p.canon, p.scale)).unzip();
+    remove_images(invalid_scales)?;
+    let images_needing_scaling: Vec<_> = data
+        .canon_without_scale
+        .into_iter()
+        .chain(canons_needing_new_scales)
+        .collect();
     scale_images(&images_needing_scaling)?;
 
     uc.update_canon(canon.iter())
@@ -161,16 +170,57 @@ fn separate_canon(images: Vec<Image>) -> CanonPartition {
     CanonPartition { canon, scaled }
 }
 
-struct ScaledPartition {
-    valid: Vec<Image>,
-    invalid: Vec<Image>,
+struct CanonScale {
+    canon: Image,
+    scale: Image,
 }
-fn separate_valid_scaled(scaled: Vec<Image>) -> ScaledPartition {
-    let (valid, invalid) = scaled.into_iter().partition(|i| {
-        i.height == MAX_SCALED_IMAGE_HEIGHT && i.width <= MAX_SCALED_IMAGE_WIDTH
-            || i.width == MAX_SCALED_IMAGE_WIDTH && i.height <= MAX_SCALED_IMAGE_HEIGHT
-    });
-    ScaledPartition { valid, invalid }
+struct CanonScaledPairData {
+    pairs: Vec<CanonScale>,
+    canon_without_scale: Vec<Image>,
+    scale_without_canon: Vec<Image>,
+}
+fn pair_canon_with_scaled(partition: CanonPartition) -> CanonScaledPairData {
+    let mut pairs = Vec::new();
+    let mut canon_without_scale = Vec::new();
+    let mut scaled: HashMap<String, Image> = partition
+        .scaled
+        .into_iter()
+        .map(|i| (i.file_name.clone(), i))
+        .collect();
+    for canon in partition.canon {
+        let scaled_name = format!("{}{}", SCALED_IMAGE_PREFIX, &canon.file_name);
+        let existing = scaled.remove(&scaled_name);
+        if let Some(scale) = existing {
+            pairs.push(CanonScale { canon, scale });
+        } else {
+            canon_without_scale.push(canon);
+        }
+    }
+
+    let scale_without_canon: Vec<_> = scaled.into_values().collect();
+
+    CanonScaledPairData {
+        pairs,
+        canon_without_scale,
+        scale_without_canon,
+    }
+}
+
+fn find_invalid_scaled(images: Vec<CanonScale>) -> Vec<CanonScale> {
+    images
+        .into_iter()
+        .filter(|i| {
+            let expected = compute_resize_dimensions(Dimensions {
+                width: i.canon.width,
+                height: i.canon.height,
+            });
+            let actual = Dimensions {
+                width: i.scale.width,
+                height: i.scale.height,
+            };
+            expected != actual
+        })
+        .collect()
 }
 
 fn remove_images(images: Vec<Image>) -> Result<(), Vec<io::Error>> {
@@ -181,12 +231,4 @@ fn remove_images(images: Vec<Image>) -> Result<(), Vec<io::Error>> {
     } else {
         Ok(())
     }
-}
-
-fn find_needed_scaling<'a>(scaled: &[Image], images: &'a [Image]) -> Vec<&'a Image> {
-    let scaled: HashMap<_, _> = scaled.iter().map(|s| (s.file_name.clone(), s)).collect();
-    images
-        .iter()
-        .filter(|i| !scaled.contains_key(&i.file_name))
-        .collect()
 }
