@@ -18,7 +18,7 @@ use tower_http::limit::RequestBodyLimitLayer;
 
 use crate::{
     api::{
-        image_dimensions::{self, FetchImageDimensionsError},
+        image_ops::{self, FetchImageDimensionsError},
         routing::ApiError,
         IMAGES_DIR,
     },
@@ -86,8 +86,8 @@ async fn upload_image(
         .await
         .map_err(|(s, e)| (s, e.to_json_string()))?;
 
-    let (image_width, image_height) = image_dimensions::fetch_image_dimensions(&file_name)
-        .map_err(|e| {
+    let (image_width, image_height) =
+        image_ops::fetch_image_dimensions(&file_name).map_err(|e| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 UploadImageError::FailedToFetchDimensions(e).to_json_string(),

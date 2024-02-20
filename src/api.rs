@@ -3,7 +3,7 @@ use axum::{middleware, Router};
 use crate::{persistence::PersistenceManager, state::screensaver_manager::ScreensaverManager};
 
 mod canon;
-mod image_dimensions;
+mod image_ops;
 mod image_server;
 mod request_tracing;
 mod routing;

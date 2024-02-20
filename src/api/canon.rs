@@ -4,7 +4,7 @@ use serde::Serialize;
 
 use crate::{
     api::{
-        image_dimensions::{self, FetchImageDimensionsError},
+        image_ops::{self, scale_images, FetchImageDimensionsError, ScaleImageError},
         IMAGES_DIR, MAX_SCALED_IMAGE_HEIGHT, MAX_SCALED_IMAGE_WIDTH, SCALED_IMAGE_PREFIX,
     },
     domain::{actions::image::UpdateCanon, models::Image, screensaver::Screensaver},
@@ -16,6 +16,7 @@ pub enum UpdateCanonError {
     FetchCanonError(FetchCanonError),
     FailedToUpdateCanon(String),
     FailedToRemoveInvalidImages(Vec<String>),
+    FailedToScaleImages(Vec<ScaleImageError>),
 }
 
 impl From<FetchCanonError> for UpdateCanonError {
@@ -27,6 +28,12 @@ impl From<FetchCanonError> for UpdateCanonError {
 impl From<Vec<io::Error>> for UpdateCanonError {
     fn from(value: Vec<io::Error>) -> Self {
         Self::FailedToRemoveInvalidImages(value.into_iter().map(|e| e.to_string()).collect())
+    }
+}
+
+impl From<Vec<ScaleImageError>> for UpdateCanonError {
+    fn from(value: Vec<ScaleImageError>) -> Self {
+        Self::FailedToScaleImages(value)
     }
 }
 
@@ -77,6 +84,7 @@ pub async fn update_canon(
     } = separate_valid_scaled(scaled);
     remove_images(invalid)?;
     let images_needing_scaling = find_needed_scaling(&scaled, &canon);
+    scale_images(&images_needing_scaling)?;
 
     uc.update_canon(canon.iter())
         .await
@@ -133,8 +141,8 @@ fn fetch_images() -> Result<Vec<Image>, FetchCanonError> {
 }
 
 fn fetch_dimensions(file_name: &str) -> Result<Image, FetchDimensionsError> {
-    let (width, height) = image_dimensions::fetch_image_dimensions(file_name)
-        .map_err(|e| (file_name.to_string(), e))?;
+    let (width, height) =
+        image_ops::fetch_image_dimensions(file_name).map_err(|e| (file_name.to_string(), e))?;
     Ok(Image {
         file_name: file_name.to_string(),
         width,
