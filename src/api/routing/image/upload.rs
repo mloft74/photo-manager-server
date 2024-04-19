@@ -18,7 +18,7 @@ use tower_http::limit::RequestBodyLimitLayer;
 
 use crate::{
     api::{
-        image_ops::{self, FetchImageDimensionsError},
+        image_ops::{self, FetchImageDimensionsError, ScaleImageError},
         routing::ApiError,
         IMAGES_DIR,
     },
@@ -52,6 +52,7 @@ enum UploadImageError {
     FailedToFetchDimensions(FetchImageDimensionsError),
     FailedToInsertImage,
     GeneralError(String),
+    ScaleError(ScaleImageError),
 }
 
 impl ApiError for UploadImageError {}
@@ -101,6 +102,13 @@ async fn upload_image(
         width: image_width,
         height: image_height,
     };
+
+    image_ops::scale_image(&image).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            UploadImageError::ScaleError(e).to_json_string(),
+        )
+    })?;
 
     image_mngr.save_image(&image).await.map_err(|e| {
         (

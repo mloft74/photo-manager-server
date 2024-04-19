@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use tokio::fs;
 
 use crate::{
-    api::{routing::ApiError, IMAGES_DIR},
+    api::{routing::ApiError, IMAGES_DIR, SCALED_IMAGE_PREFIX},
     domain::{actions::image::RenameImage, screensaver::Screensaver},
 };
 
@@ -70,5 +70,14 @@ async fn rename_fs(input: &RenameInput) -> Result<(), String> {
         format!("{}/{}", IMAGES_DIR, input.new_name),
     )
     .await
-    .map_err(|e| e.to_string())
+    .map_err(|e| e.to_string())?;
+
+    fs::rename(
+        format!("{}/{}{}", IMAGES_DIR, SCALED_IMAGE_PREFIX, input.old_name),
+        format!("{}/{}{}", IMAGES_DIR, SCALED_IMAGE_PREFIX, input.new_name),
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
 }

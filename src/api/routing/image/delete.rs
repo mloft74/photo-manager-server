@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use tokio::fs;
 
 use crate::{
-    api::{routing::ApiError, IMAGES_DIR},
+    api::{routing::ApiError, IMAGES_DIR, SCALED_IMAGE_PREFIX},
     domain::{actions::image::DeleteImage, screensaver::Screensaver},
 };
 
@@ -62,5 +62,14 @@ async fn delete_image(
 async fn delete_fs(input: &DeleteInput) -> Result<(), String> {
     fs::remove_file(format!("{}/{}", IMAGES_DIR, input.file_name))
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+
+    fs::remove_file(format!(
+        "{}/{}{}",
+        IMAGES_DIR, SCALED_IMAGE_PREFIX, input.file_name
+    ))
+    .await
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
 }
