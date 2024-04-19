@@ -11,8 +11,8 @@ pub struct RemoveImageError {
     pub details: String,
 }
 
-pub fn remove_images(images: Vec<Image>) -> Result<(), Vec<RemoveImageError>> {
-    let results = images.into_iter().map(|i| {
+pub fn remove_images(images: &[Image]) -> Result<(), Vec<RemoveImageError>> {
+    let results = images.iter().map(|i| {
         let path = format!("{}/{}", IMAGES_DIR, &i.file_name);
         fs::remove_file(path).map_err(|e| RemoveImageError {
             image_name: i.file_name.clone(),

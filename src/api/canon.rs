@@ -89,7 +89,7 @@ pub async fn update_canon(
 
     logging::log_canon_scaled_pair_data(&data);
 
-    remove_images::remove_images(data.scale_without_canon)?;
+    remove_images::remove_images(&data.scale_without_canon)?;
 
     let invalid = scaling::find_invalid_pairs(data.pairs);
     let (canons_needing_new_scales, invalid_scales): (Vec<_>, Vec<_>) =
@@ -97,7 +97,7 @@ pub async fn update_canon(
     logging::log_needing_new_scales(&canons_needing_new_scales);
     logging::log_invalid_scales(&invalid_scales);
 
-    remove_images::remove_images(invalid_scales)?;
+    remove_images::remove_images(&invalid_scales)?;
     let images_needing_scaling: Vec<_> = data
         .canon_without_scale
         .into_iter()
