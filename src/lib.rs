@@ -39,6 +39,7 @@ pub async fn run() {
         listener
             .set_nonblocking(true)
             .expect("Should be able to set listener as non-blocking");
+        debug!("now listening");
         loop {
             let should_stop = listen_stop_recv.try_recv();
             match should_stop {
@@ -72,17 +73,30 @@ pub async fn run() {
     });
 
     let stream_handler = thread::spawn(move || {
-        let mut streams = Vec::new();
+        let mut streams: Vec<(std::net::TcpStream, std::net::SocketAddr)> = Vec::new();
         loop {
+            debug!("starting stream loop");
             let should_stop = stream_stop_recv.try_recv();
             match should_stop {
                 Err(TryRecvError::Empty) => (),
                 Err(TryRecvError::Disconnected) => {
                     warn!("listen_stop_recv disconnected, stopping thread");
+                    for (stream, addr) in streams.iter() {
+                        let res = stream.shutdown(std::net::Shutdown::Both);
+                        if let Err(err) = res {
+                            error!("could not shutdown {addr} because of error: {err}");
+                        }
+                    }
                     break;
                 }
                 Ok(_) => {
                     debug!("listen received stop signal, stopping thread");
+                    for (stream, addr) in streams.iter() {
+                        let res = stream.shutdown(std::net::Shutdown::Both);
+                        if let Err(err) = res {
+                            error!("could not shutdown {addr} because of error: {err}");
+                        }
+                    }
                     break;
                 }
             }
@@ -91,29 +105,54 @@ pub async fn run() {
                 Err(TryRecvError::Empty) => (),
                 Err(TryRecvError::Disconnected) => {
                     warn!("stream_recv disconnected, stopping thread");
+                    for (stream, addr) in streams.iter() {
+                        let res = stream.shutdown(std::net::Shutdown::Both);
+                        if let Err(err) = res {
+                            error!("could not shutdown {addr} because of error: {err}");
+                        }
+                    }
                     break;
                 }
                 Ok((stream, addr)) => {
-                    stream.set_nonblocking(true).expect_lazy(|| {
-                        format!("should be able to set stream as non-blocking | addr: {addr}")
+                    stream.set_nonblocking(false).expect_lazy(|| {
+                        format!("should be able to set stream as blocking | addr: {addr}")
                     });
                     streams.push((stream, addr));
                 }
             }
-            for (stream, addr) in streams.iter_mut() {
+            let mut to_remove = Vec::new();
+            for (idx, (stream, addr)) in streams.iter_mut().enumerate() {
                 let mut string = String::new();
-                let res = stream.read_to_string(&mut string);
-                let string = match res {
-                    Ok(0) => None,
-                    Ok(_) => Some(string),
-                    Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => None,
-                    Err(e) => {
-                        error!("encountered error accepting tcp connection: {e}");
-                        None
+                loop {
+                    let mut buf = Vec::with_capacity(512);
+                    let res = stream.read(&mut buf);
+                    match res {
+                        Ok(0) => {
+                            debug!("got no bytes");
+                            break;
+                        }
+                        Ok(x) => {
+                            debug!("got {x} bytes");
+                            let bytes = &buf[0..x];
+                            let x = std::str::from_utf8(bytes);
+                            match x {
+                                Ok(val) => string.push_str(val),
+                                Err(err) => error!("could not convert bytes to string | err: {err}, bytes: {bytes:?}"),
+                            }
+                        }
+                        Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                            debug!("would block, breaking loop");
+                            break;
+                        }
+                        Err(e) => {
+                            error!("encountered error reading from tcp connection {addr}: {e}");
+                            to_remove.push(idx);
+                            break;
+                        }
                     }
-                };
-                if let Some(msg) = string {
-                    debug!("got msg from {addr}: {msg}");
+                }
+                if !string.is_empty() {
+                    debug!("got msg from {addr}: {string}");
                     let msg = format!("sending message to {addr}");
                     let res = stream.write_all(msg.as_bytes());
                     if let Err(err) = res {
@@ -121,6 +160,15 @@ pub async fn run() {
                     }
                 }
             }
+            for idx in to_remove.into_iter().rev() {
+                let (stream, addr) = streams.remove(idx);
+                debug!("closing {addr}");
+                let res = stream.shutdown(std::net::Shutdown::Both);
+                if let Err(err) = res {
+                    error!("could not shutdown {addr} because of error: {err}");
+                }
+            }
+
             thread::sleep(Duration::from_millis(100));
         }
     });
