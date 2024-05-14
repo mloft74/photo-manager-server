@@ -1,4 +1,3 @@
-version: '3.8'
 services:
   photo_manager_server:
     build: .

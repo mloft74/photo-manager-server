@@ -1,8 +1,8 @@
 use std::{
     fmt::Debug,
-    io::{self, Read, Write},
+    io::{self, BufRead, BufReader, Write},
     net::{Shutdown, SocketAddr, TcpListener, TcpStream},
-    sync::mpsc::{self, Receiver, Sender, TryRecvError},
+    sync::mpsc::{self, Receiver, TryRecvError},
     thread::{self, JoinHandle},
     time::Duration,
 };
@@ -90,9 +90,12 @@ fn listener_thread(recv_stop_listen: Receiver<()>) -> JoinHandle<()> {
             }
             for idx in finished_idxs {
                 let (_, addr, thread) = stream_threads.remove(idx);
+                debug!("detected that {addr} thread finished, joining");
                 let res = thread.join();
                 if let Err(err) = res {
                     error!("peer thread {addr} failed to join: {err:?}");
+                } else {
+                    debug!("finished joining {addr} thread");
                 }
             }
 
@@ -123,15 +126,12 @@ fn listener_thread(recv_stop_listen: Receiver<()>) -> JoinHandle<()> {
     })
 }
 
-fn stream_thread(
-    recv_stop: Receiver<()>,
-    mut stream: TcpStream,
-    addr: SocketAddr,
-) -> JoinHandle<()> {
+fn stream_thread(recv_stop: Receiver<()>, stream: TcpStream, addr: SocketAddr) -> JoinHandle<()> {
     thread::spawn(move || {
         stream
-            .set_nonblocking(true)
-            .expect("Should be able to set stream as non-blocking");
+            .set_nonblocking(false)
+            .expect("Should be able to set stream as blocking");
+        let mut reader = BufReader::new(stream);
         debug!("[{addr}] now handling stream");
         'thread: loop {
             let should_stop = recv_stop.try_recv();
@@ -148,28 +148,14 @@ fn stream_thread(
             }
 
             let mut string = String::new();
-            loop {
-                let mut buf = Vec::with_capacity(512);
-                let res = stream.read(&mut buf);
+            {
+                let res = reader.read_line(&mut string);
                 match res {
                     Ok(0) => {
-                        debug!("[{addr}] got no bytes | buf: {buf:?}");
-                        break;
+                        debug!("[{addr}] got no bytes | string: {string}");
                     }
                     Ok(x) => {
-                        let bytes = &buf[0..x];
-                        debug!("[{addr}] got {x} bytes: {bytes:?}");
-                        let x = std::str::from_utf8(bytes);
-                        match x {
-                            Ok(val) => string.push_str(val),
-                            Err(err) => error!(
-                                "[{addr}] could not convert bytes to string | err: {err}, bytes: {bytes:?}"
-                            ),
-                        }
-                    }
-                    Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                        debug!("[{addr}] would block, breaking read loop");
-                        break;
+                        debug!("[{addr}] got {x} bytes | string: {string}");
                     }
                     Err(e) => {
                         error!("[{addr}] encountered error reading from tcp connection: {e}");
@@ -177,10 +163,19 @@ fn stream_thread(
                     }
                 }
             }
+
             if !string.is_empty() {
                 debug!("[{addr}] got msg: {string}");
-                let msg = format!("[{addr}] sending message to peer");
-                let res = stream.write_all(msg.as_bytes());
+                let msg = format!("[{addr}] sending prompted message to peer");
+                let res = reader.get_ref().write_all(msg.as_bytes());
+                if let Err(err) = res {
+                    error!("[{addr}] error sending message to peer: {err}");
+                    break;
+                }
+            } else {
+                debug!("[{addr}] got no msg, sending to peer anyway");
+                let msg = format!("[{addr}] sending unprompted message to peer");
+                let res = reader.get_ref().write_all(msg.as_bytes());
                 if let Err(err) = res {
                     error!("[{addr}] error sending message to peer: {err}");
                     break;
@@ -190,7 +185,8 @@ fn stream_thread(
             thread::sleep(Duration::from_millis(100));
         }
 
-        let res = stream.shutdown(Shutdown::Both);
+        debug!("[{addr}] shutting down connection");
+        let res = reader.get_ref().shutdown(Shutdown::Both);
         if let Err(err) = res {
             error!("[{addr}] could not close peer connection because error: {err}");
         }
