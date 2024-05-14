@@ -1,13 +1,13 @@
 use std::{
     fmt::Debug,
     io::{self, Read, Write},
-    sync::mpsc::{self, TryRecvError},
-    thread,
+    net::{Shutdown, SocketAddr, TcpListener, TcpStream},
+    sync::mpsc::{self, Receiver, Sender, TryRecvError},
+    thread::{self, JoinHandle},
     time::Duration,
 };
 
 use dotenvy::dotenv;
-use tokio::net::TcpListener;
 use tracing::{debug, error, warn};
 
 mod api;
@@ -29,27 +29,42 @@ pub async fn run() {
 
     // TODO: manually test this code
 
-    let (listen_stop_send, listen_stop_recv) = mpsc::channel();
-    let (stream_stop_send, stream_stop_recv) = mpsc::channel();
-    let (stream_send, stream_recv) = mpsc::channel();
+    let (send_stop_listen, recv_stop_listen) = mpsc::channel();
 
-    let listen_handler = thread::spawn(move || {
-        let listener =
-            std::net::TcpListener::bind("0.0.0.0:4000").expect("TcpListener should be valid");
+    let listen_handler = listener_thread(recv_stop_listen);
+
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
+        .await
+        .expect("TcpListener should be valid");
+    axum::serve(listener, api_router)
+        .await
+        .expect("Server should run without errors");
+    send_stop_listen
+        .send(())
+        .expect("Should be able to send stop signal to listen");
+    listen_handler
+        .join()
+        .expect("Listen thread should not panic");
+}
+
+fn listener_thread(recv_stop_listen: Receiver<()>) -> JoinHandle<()> {
+    thread::spawn(move || {
+        let listener = TcpListener::bind("0.0.0.0:4000").expect("TcpListener should be valid");
         listener
             .set_nonblocking(true)
             .expect("Should be able to set listener as non-blocking");
+        let mut stream_threads = Vec::new();
         debug!("now listening");
         loop {
-            let should_stop = listen_stop_recv.try_recv();
+            let should_stop = recv_stop_listen.try_recv();
             match should_stop {
                 Err(TryRecvError::Empty) => (),
                 Err(TryRecvError::Disconnected) => {
-                    warn!("listen_stop_recv disconnected, stopping thread");
+                    warn!("recv_stop_listen disconnected, stopping thread");
                     break;
                 }
                 Ok(_) => {
-                    debug!("listen received stop signal, stopping thread");
+                    debug!("recv_stop_listen received stop signal, stopping thread");
                     break;
                 }
             }
@@ -57,10 +72,9 @@ pub async fn run() {
             match res {
                 Ok((stream, addr)) => {
                     debug!("established connection with {addr}");
-                    let send_res = stream_send.send((stream, addr));
-                    if let Err(err) = send_res {
-                        error!("could not send stream due to problem: {err}");
-                    }
+                    let (send_stop, recv_stop) = mpsc::channel();
+                    let thread = stream_thread(recv_stop, stream, addr);
+                    stream_threads.push((send_stop, addr, thread));
                 }
                 Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => (),
                 Err(e) => {
@@ -68,129 +82,119 @@ pub async fn run() {
                 }
             }
 
+            let mut finished_idxs = Vec::new();
+            for (idx, (_, _, thread)) in stream_threads.iter().enumerate() {
+                if thread.is_finished() {
+                    finished_idxs.push(idx);
+                }
+            }
+            for idx in finished_idxs {
+                let (_, addr, thread) = stream_threads.remove(idx);
+                let res = thread.join();
+                if let Err(err) = res {
+                    error!("peer thread {addr} failed to join: {err:?}");
+                }
+            }
+
             thread::sleep(Duration::from_millis(100));
         }
-    });
 
-    let stream_handler = thread::spawn(move || {
-        let mut streams: Vec<(std::net::TcpStream, std::net::SocketAddr)> = Vec::new();
-        loop {
-            debug!("starting stream loop");
-            let should_stop = stream_stop_recv.try_recv();
+        let (send_stops, threads) =
+            stream_threads
+                .into_iter()
+                .fold((Vec::new(), Vec::new()), |mut acc, element| {
+                    let (send_stop, addr, thread) = element;
+                    acc.0.push((send_stop, addr));
+                    acc.1.push((thread, addr));
+                    acc
+                });
+        for (send_stop, addr) in send_stops {
+            let res = send_stop.send(());
+            if let Err(err) = res {
+                error!("failed to send stop signal to thread for {addr}: {err}");
+            }
+        }
+        for (thread, addr) in threads {
+            let res = thread.join();
+            if let Err(err) = res {
+                error!("failed to join thread for {addr}: {err:?}");
+            }
+        }
+    })
+}
+
+fn stream_thread(
+    recv_stop: Receiver<()>,
+    mut stream: TcpStream,
+    addr: SocketAddr,
+) -> JoinHandle<()> {
+    thread::spawn(move || {
+        stream
+            .set_nonblocking(true)
+            .expect("Should be able to set stream as non-blocking");
+        debug!("[{addr}] now handling stream");
+        'thread: loop {
+            let should_stop = recv_stop.try_recv();
             match should_stop {
                 Err(TryRecvError::Empty) => (),
                 Err(TryRecvError::Disconnected) => {
-                    warn!("listen_stop_recv disconnected, stopping thread");
-                    for (stream, addr) in streams.iter() {
-                        let res = stream.shutdown(std::net::Shutdown::Both);
-                        if let Err(err) = res {
-                            error!("could not shutdown {addr} because of error: {err}");
-                        }
-                    }
+                    warn!("[{addr}] recv_stop disconnected, stopping thread");
                     break;
                 }
                 Ok(_) => {
-                    debug!("listen received stop signal, stopping thread");
-                    for (stream, addr) in streams.iter() {
-                        let res = stream.shutdown(std::net::Shutdown::Both);
-                        if let Err(err) = res {
-                            error!("could not shutdown {addr} because of error: {err}");
-                        }
-                    }
+                    debug!("[{addr}] recv_stop received stop signal, stopping thread");
                     break;
                 }
             }
-            let new_stream = stream_recv.try_recv();
-            match new_stream {
-                Err(TryRecvError::Empty) => (),
-                Err(TryRecvError::Disconnected) => {
-                    warn!("stream_recv disconnected, stopping thread");
-                    for (stream, addr) in streams.iter() {
-                        let res = stream.shutdown(std::net::Shutdown::Both);
-                        if let Err(err) = res {
-                            error!("could not shutdown {addr} because of error: {err}");
+
+            let mut string = String::new();
+            loop {
+                let mut buf = Vec::with_capacity(512);
+                let res = stream.read(&mut buf);
+                match res {
+                    Ok(0) => {
+                        debug!("[{addr}] got no bytes | buf: {buf:?}");
+                        break;
+                    }
+                    Ok(x) => {
+                        let bytes = &buf[0..x];
+                        debug!("[{addr}] got {x} bytes: {bytes:?}");
+                        let x = std::str::from_utf8(bytes);
+                        match x {
+                            Ok(val) => string.push_str(val),
+                            Err(err) => error!(
+                                "[{addr}] could not convert bytes to string | err: {err}, bytes: {bytes:?}"
+                            ),
                         }
                     }
-                    break;
-                }
-                Ok((stream, addr)) => {
-                    stream.set_nonblocking(false).expect_lazy(|| {
-                        format!("should be able to set stream as blocking | addr: {addr}")
-                    });
-                    streams.push((stream, addr));
-                }
-            }
-            let mut to_remove = Vec::new();
-            for (idx, (stream, addr)) in streams.iter_mut().enumerate() {
-                let mut string = String::new();
-                loop {
-                    let mut buf = Vec::with_capacity(512);
-                    let res = stream.read(&mut buf);
-                    match res {
-                        Ok(0) => {
-                            debug!("got no bytes");
-                            break;
-                        }
-                        Ok(x) => {
-                            debug!("got {x} bytes");
-                            let bytes = &buf[0..x];
-                            let x = std::str::from_utf8(bytes);
-                            match x {
-                                Ok(val) => string.push_str(val),
-                                Err(err) => error!("could not convert bytes to string | err: {err}, bytes: {bytes:?}"),
-                            }
-                        }
-                        Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                            debug!("would block, breaking loop");
-                            break;
-                        }
-                        Err(e) => {
-                            error!("encountered error reading from tcp connection {addr}: {e}");
-                            to_remove.push(idx);
-                            break;
-                        }
+                    Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                        debug!("[{addr}] would block, breaking read loop");
+                        break;
                     }
-                }
-                if !string.is_empty() {
-                    debug!("got msg from {addr}: {string}");
-                    let msg = format!("sending message to {addr}");
-                    let res = stream.write_all(msg.as_bytes());
-                    if let Err(err) = res {
-                        error!("error sending message to {addr}: {err}");
+                    Err(e) => {
+                        error!("[{addr}] encountered error reading from tcp connection: {e}");
+                        break 'thread;
                     }
                 }
             }
-            for idx in to_remove.into_iter().rev() {
-                let (stream, addr) = streams.remove(idx);
-                debug!("closing {addr}");
-                let res = stream.shutdown(std::net::Shutdown::Both);
+            if !string.is_empty() {
+                debug!("[{addr}] got msg: {string}");
+                let msg = format!("[{addr}] sending message to peer");
+                let res = stream.write_all(msg.as_bytes());
                 if let Err(err) = res {
-                    error!("could not shutdown {addr} because of error: {err}");
+                    error!("[{addr}] error sending message to peer: {err}");
+                    break;
                 }
             }
 
             thread::sleep(Duration::from_millis(100));
         }
-    });
 
-    let listener = TcpListener::bind("0.0.0.0:3000")
-        .await
-        .expect("TcpListener should be valid");
-    axum::serve(listener, api_router)
-        .await
-        .expect("Server should run without errors");
-    listen_stop_send
-        .send(())
-        .expect("Should be able to send stop signal to listen");
-    stream_stop_send
-        .send(())
-        .expect("Should be able to send stop signal to stream");
-    listen_handler
-        .join()
-        .expect("Listen thread should not panic");
-    stream_handler
-        .join()
-        .expect("Steam thread should not panic");
+        let res = stream.shutdown(Shutdown::Both);
+        if let Err(err) = res {
+            error!("[{addr}] could not close peer connection because error: {err}");
+        }
+    })
 }
 
 trait LazyExpect {
