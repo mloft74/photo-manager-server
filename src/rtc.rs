@@ -1,14 +1,70 @@
 use std::{
+    any::Any,
     io::{self, BufRead, BufReader, Write},
     net::{Shutdown, SocketAddr, TcpListener, TcpStream},
-    sync::mpsc::{self, Receiver, TryRecvError},
+    sync::mpsc::{self, Receiver, SendError, Sender, TryRecvError},
     thread::{self, JoinHandle},
     time::Duration,
 };
 
 use tracing::{debug, error, warn};
 
-pub fn listener_thread(recv_stop_listen: Receiver<()>) -> JoinHandle<()> {
+pub struct RtcHandle {
+    send_app_stop: Sender<()>,
+    app_rtc: JoinHandle<()>,
+    // send_consumer_stop: Sender<()>,
+    // consumer_rtc: JoinHandle<()>,
+}
+
+#[derive(Debug)]
+pub struct RtcCloseError {
+    send_app_stop: Option<SendError<()>>,
+    app_join: Option<Box<dyn Any + Send>>,
+    // send_consumer_stop: Option<SendError<()>>,
+    // consumer_join: Option<Box<dyn Any + Send>>,
+}
+
+impl RtcCloseError {
+    fn any(&self) -> bool {
+        self.send_app_stop.is_some() || self.app_join.is_some()
+        // || self.send_consumer_stop.is_some()
+        // || self.consumer_join.is_some()
+    }
+}
+
+impl RtcHandle {
+    pub fn close(self) -> Result<(), RtcCloseError> {
+        let send_app_stop = self.send_app_stop.send(()).err();
+        // let send_consumer_stop = self.send_consumer_stop.send(()).err();
+        let app_join = self.app_rtc.join().err();
+        // let consumer_join = self.consumer_rtc.join().err();
+
+        let err = RtcCloseError {
+            send_app_stop,
+            // send_consumer_stop,
+            app_join,
+            // consumer_join,
+        };
+
+        if err.any() {
+            Err(err)
+        } else {
+            Ok(())
+        }
+    }
+}
+
+pub fn init_rtc() -> RtcHandle {
+    let (send_app_stop, recv_app_stop) = mpsc::channel();
+    let app_rtc = app_rtc_thread(recv_app_stop);
+
+    RtcHandle {
+        send_app_stop,
+        app_rtc,
+    }
+}
+
+fn app_rtc_thread(recv_stop_rtc: Receiver<()>) -> JoinHandle<()> {
     thread::spawn(move || {
         let listener = TcpListener::bind("0.0.0.0:4000").expect("TcpListener should be valid");
         listener
@@ -18,7 +74,7 @@ pub fn listener_thread(recv_stop_listen: Receiver<()>) -> JoinHandle<()> {
 
         let mut stream_threads = Vec::new();
         loop {
-            let should_stop = recv_stop_listen.try_recv();
+            let should_stop = recv_stop_rtc.try_recv();
             match should_stop {
                 Err(TryRecvError::Empty) => (),
                 Err(TryRecvError::Disconnected) => {
@@ -36,7 +92,7 @@ pub fn listener_thread(recv_stop_listen: Receiver<()>) -> JoinHandle<()> {
                 Ok((stream, addr)) => {
                     debug!("established connection with {addr}");
                     let (send_stop, recv_stop) = mpsc::channel();
-                    let thread = stream_thread(recv_stop, stream, addr);
+                    let thread = app_stream_thread(recv_stop, stream, addr);
                     stream_threads.push((send_stop, addr, thread));
                 }
                 Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => (),
@@ -91,7 +147,11 @@ pub fn listener_thread(recv_stop_listen: Receiver<()>) -> JoinHandle<()> {
     })
 }
 
-fn stream_thread(recv_stop: Receiver<()>, stream: TcpStream, addr: SocketAddr) -> JoinHandle<()> {
+fn app_stream_thread(
+    recv_stop: Receiver<()>,
+    stream: TcpStream,
+    addr: SocketAddr,
+) -> JoinHandle<()> {
     thread::spawn(move || {
         stream
             .set_nonblocking(false)

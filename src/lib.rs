@@ -1,6 +1,7 @@
-use std::{fmt::Debug, sync::mpsc};
+use std::fmt::Debug;
 
 use dotenvy::dotenv;
+use tokio::net::TcpListener;
 
 mod api;
 mod domain;
@@ -18,22 +19,15 @@ pub async fn run() {
 
     let api_router = api::make_api_router(&persistence_mngr).await;
 
-    let (send_stop_listen, recv_stop_listen) = mpsc::channel();
+    let rtc_handle = rtc::init_rtc();
 
-    let listen_handler = rtc::listener_thread(recv_stop_listen);
-
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
+    let listener = TcpListener::bind("0.0.0.0:3000")
         .await
         .expect("TcpListener should be valid");
     axum::serve(listener, api_router)
         .await
         .expect("Server should run without errors");
-    send_stop_listen
-        .send(())
-        .expect("Should be able to send stop signal to listen");
-    listen_handler
-        .join()
-        .expect("Listen thread should not panic");
+    rtc_handle.close().expect("Rtc should close without issue");
 }
 
 trait LazyExpect {
