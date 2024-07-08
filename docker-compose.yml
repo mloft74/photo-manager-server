@@ -5,6 +5,7 @@ services:
     ports:
       - '3000:3000'
       - '4000:4000'
+      - '4001:4001'
     volumes:
       - /var/lib/photo_manager_server:/var/lib/photo_manager_server
     depends_on:
