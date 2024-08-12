@@ -1,7 +1,7 @@
 # https://dev.to/rogertorres/first-steps-with-docker-rust-30oi
 
 # Rust as the base image.
-FROM rust:1.76.0 as build
+FROM rust:1.80.1 as build
 
 # Create a new empty shell project.
 RUN cargo new --bin photo_manager_server
