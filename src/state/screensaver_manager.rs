@@ -1,4 +1,5 @@
 use std::{
+    any::type_name,
     collections::HashMap,
     sync::{Arc, Mutex, MutexGuard},
 };
@@ -28,7 +29,8 @@ impl ScreensaverManager {
         match self.state.lock() {
             Ok(guard) => guard,
             Err(poison) => {
-                tracing::debug!("Accessing poisoned mutex");
+                let name = type_name::<ScreensaverManager>();
+                tracing::debug!("Accessing poisoned {name} mutex");
                 poison.into_inner()
             }
         }

@@ -3,6 +3,8 @@ use std::fmt::Debug;
 use dotenvy::dotenv;
 use tokio::net::TcpListener;
 
+use crate::state::screensaver_event_manager::ScreensaverEventManager;
+
 mod api;
 mod domain;
 mod persistence;
@@ -16,6 +18,8 @@ pub async fn run() {
     let persistence_mngr = persistence::init_persistence().await;
 
     server_tracing::init_tracing_subscriber();
+
+    let mut event_mngr = ScreensaverEventManager::new();
 
     let api_router = api::make_api_router(&persistence_mngr).await;
 
