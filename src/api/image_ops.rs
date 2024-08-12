@@ -2,7 +2,7 @@ use std::fs::File;
 
 use image::{
     imageops::{resize, FilterType},
-    io::Reader as ImageReader,
+    ImageReader,
 };
 use serde::Serialize;
 
