@@ -2,11 +2,11 @@ use std::{
     any::Any,
     io::{self, BufRead, BufReader, Write},
     net::{Shutdown, SocketAddr, TcpListener, TcpStream},
+    sync::mpsc::{self, Receiver, SendError, Sender, TryRecvError},
     thread::{self, JoinHandle},
     time::Duration,
 };
 
-use crossbeam::channel::{self, Receiver, SendError, Sender, TryRecvError};
 use tracing::{debug, error, warn};
 
 use crate::{
@@ -53,8 +53,8 @@ impl RtcHandle {
 }
 
 pub fn init_rtc(event_mngr: &mut ScreensaverEventManager) -> RtcHandle {
-    let (send_app_stop, recv_app_stop) = channel::unbounded();
-    let (send_event, recv_event) = channel::unbounded();
+    let (send_app_stop, recv_app_stop) = mpsc::channel();
+    let (send_event, recv_event) = mpsc::channel();
     let app_rtc = app_rtc_thread(recv_app_stop, recv_event);
     let id = event_mngr.register(Box::new(move |e| {
         let err = send_event.send(e);
@@ -103,9 +103,10 @@ fn app_rtc_thread(
             match res {
                 Ok((stream, addr)) => {
                     debug!("[app_rtc] established connection with {addr}");
-                    let (send_stop, recv_stop) = channel::unbounded();
-                    let thread = app_stream_thread(recv_stop, recv_event.clone(), stream, addr);
-                    stream_threads.push((send_stop, addr, thread));
+                    let (send_stop, recv_stop) = mpsc::channel();
+                    let (send_event, recv_event) = mpsc::channel();
+                    let thread = app_stream_thread(recv_stop, recv_event, stream, addr);
+                    stream_threads.push((send_stop, send_event, addr, thread));
                 }
                 Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => (),
                 Err(e) => {
@@ -116,19 +117,37 @@ fn app_rtc_thread(
             // This section is written with mutating loops instead of list transforms
             // because we need to remove threads from the thread list as we go.
             let mut finished_idxs = Vec::new();
-            for (idx, (_, _, thread)) in stream_threads.iter().enumerate() {
+            for (idx, (_, _, _, thread)) in stream_threads.iter().enumerate() {
                 if thread.is_finished() {
                     finished_idxs.push(idx);
                 }
             }
             for idx in finished_idxs {
-                let (_, addr, thread) = stream_threads.remove(idx);
+                let (_, _, addr, thread) = stream_threads.remove(idx);
                 debug!("[app_rtc] detected that {addr} thread finished, joining");
                 let res = thread.join();
                 if let Err(err) = res {
                     error!("[app_rtc] peer thread {addr} failed to join: {err:?}");
                 } else {
                     debug!("[app_rtc] finished joining {addr} thread");
+                }
+            }
+
+            let event = recv_event.try_recv();
+            match event {
+                Err(TryRecvError::Empty) => (),
+                Err(TryRecvError::Disconnected) => {
+                    let name = stringify!(recv_event);
+                    warn!("[app_rtc] {name} disconnected, stopping thread");
+                    break;
+                }
+                Ok(event) => {
+                    for (_, send_event, addr, _) in stream_threads.iter() {
+                        let res = send_event.send(event.clone());
+                        if let Err(err) = res {
+                            error!("[app_rtc] failed to send event {event:?} to {addr}: {err}");
+                        }
+                    }
                 }
             }
 
@@ -139,7 +158,7 @@ fn app_rtc_thread(
             stream_threads
                 .into_iter()
                 .fold((Vec::new(), Vec::new()), |mut acc, element| {
-                    let (send_stop, addr, thread) = element;
+                    let (send_stop, _, addr, thread) = element;
                     acc.0.push((send_stop, addr));
                     acc.1.push((thread, addr));
                     acc
@@ -167,7 +186,7 @@ fn app_stream_thread(
 ) -> JoinHandle<()> {
     thread::spawn(move || {
         stream
-            .set_nonblocking(false)
+            .set_nonblocking(true)
             .expect("[app_stream] Should be able to set stream as blocking");
         let mut reader = BufReader::new(stream);
         debug!("[app_stream] [{addr}] now handling stream");
@@ -177,44 +196,27 @@ fn app_stream_thread(
             match should_stop {
                 Err(TryRecvError::Empty) => (),
                 Err(TryRecvError::Disconnected) => {
-                    warn!("[app_stream] [{addr}] recv_stop disconnected, stopping thread");
+                    let name = stringify!(recv_stop);
+                    warn!("[app_stream] [{addr}] {name} disconnected, stopping thread");
                     break;
                 }
                 Ok(_) => {
-                    debug!("[app_stream] [{addr}] recv_stop received stop signal, stopping thread");
+                    let name = stringify!(recv_stop);
+                    debug!("[app_stream] [{addr}] {name} received stop signal, stopping thread");
                     break;
                 }
-            }
-
-            let mut string = String::new();
-            {
-                let res = reader.read_line(&mut string);
-                match res {
-                    Ok(0) => {
-                        debug!("[app_stream] [{addr}] got no bytes | string: {string}");
-                    }
-                    Ok(x) => {
-                        debug!("[app_stream] [{addr}] got {x} bytes | string: {string}");
-                    }
-                    Err(e) => {
-                        error!("[app_stream] [{addr}] encountered error reading from tcp connection: {e}");
-                        break;
-                    }
-                }
-            }
-
-            if !string.is_empty() {
-                debug!("[app_stream] [{addr}] got msg: {string}");
             }
 
             let event = recv_event.try_recv();
             match event {
                 Err(TryRecvError::Empty) => (),
                 Err(TryRecvError::Disconnected) => {
-                    warn!("[app_stream] [{addr}] recv_stop disconnected, stopping thread");
+                    let name = stringify!(recv_event);
+                    warn!("[app_stream] [{addr}] {name} disconnected, stopping thread");
                     break;
                 }
                 Ok(event) => {
+                    debug!("[app_stream] [{addr}] got event {event:?}");
                     let json = serde_json::to_string(&event);
                     match json {
                         Err(err) => {
@@ -224,6 +226,7 @@ fn app_stream_thread(
                             break;
                         }
                         Ok(json) => {
+                            debug!("[app_stream] [{addr}] sending json {json}");
                             let res = reader.get_ref().write_all(json.as_bytes());
                             if let Err(err) = res {
                                 error!(
@@ -235,6 +238,30 @@ fn app_stream_thread(
                     }
                 }
             }
+
+            let mut string = String::new();
+            {
+                let res = reader.read_line(&mut string);
+                match res {
+                    Ok(0) => {
+                        debug!("[app_stream] [{addr}] got no bytes, stopping thread | string: {string}");
+                        break;
+                    }
+                    Ok(x) => {
+                        debug!("[app_stream] [{addr}] got {x} bytes | string: {string}");
+                    }
+                    Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => (),
+                    Err(e) => {
+                        error!("[app_stream] [{addr}] encountered error reading from tcp connection: {e}");
+                        break;
+                    }
+                }
+            }
+
+            if !string.is_empty() {
+                debug!("[app_stream] [{addr}] got msg: {string}");
+            }
+
             thread::sleep(Duration::from_millis(100));
         }
 
