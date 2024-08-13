@@ -2,7 +2,12 @@ use axum::Router;
 use serde::Serialize;
 use serde_json::json;
 
-use crate::{persistence::PersistenceManager, state::screensaver_manager::ScreensaverManager};
+use crate::{
+    persistence::PersistenceManager,
+    state::{
+        screensaver_event_manager::ScreensaverEventManager, screensaver_manager::ScreensaverManager,
+    },
+};
 
 mod image;
 mod ping;
@@ -10,11 +15,16 @@ mod ping;
 pub fn make_api_router(
     persistence_mngr: &PersistenceManager,
     screensaver_mngr: &ScreensaverManager,
+    event_mngr: &ScreensaverEventManager,
 ) -> Router {
     Router::new().nest(
         "/api",
         Router::new()
-            .merge(image::make_image_router(persistence_mngr, screensaver_mngr))
+            .merge(image::make_image_router(
+                persistence_mngr,
+                screensaver_mngr,
+                event_mngr,
+            ))
             .merge(ping::make_ping_router()),
     )
 }

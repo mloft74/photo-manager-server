@@ -4,14 +4,22 @@ use tokio::fs;
 
 use crate::{
     api::{routing::ApiError, IMAGES_DIR, SCALED_IMAGE_PREFIX},
-    domain::{actions::image::RenameImage, screensaver::Screensaver},
+    domain::{
+        actions::image::RenameImage,
+        event_system::{ScreensaverEvent, ScreensaverEventSys},
+        screensaver::Screensaver,
+    },
 };
 
 pub fn make_rename_router(
     ri: impl 'static + Clone + Send + Sync + RenameImage,
     screensaver: impl 'static + Clone + Send + Sync + Screensaver,
+    event_mngr: impl 'static + Clone + Send + Sync + ScreensaverEventSys,
 ) -> Router {
-    Router::new().route("/rename", post(|body| rename_image(body, ri, screensaver)))
+    Router::new().route(
+        "/rename",
+        post(|body| rename_image(body, ri, event_mngr, screensaver)),
+    )
 }
 
 #[derive(Serialize)]
@@ -34,6 +42,7 @@ struct RenameInput {
 async fn rename_image(
     Json(input): Json<RenameInput>,
     ri: impl RenameImage,
+    event_mngr: impl ScreensaverEventSys,
     mut screensaver: impl Screensaver,
 ) -> Result<(), (StatusCode, String)> {
     rename_fs(&input).await.map_err(|e| {
@@ -60,6 +69,11 @@ async fn rename_image(
                 RenameImageError::FailedToRenameInQueue.to_json_string(),
             )
         })?;
+
+    event_mngr.send(ScreensaverEvent::ImageRenamed {
+        old_name: input.old_name.clone(),
+        new_name: input.new_name.clone(),
+    });
 
     Ok(())
 }

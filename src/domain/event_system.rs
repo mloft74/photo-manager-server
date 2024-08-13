@@ -1,9 +1,11 @@
 use serde::Serialize;
 
-#[derive(Clone, Copy, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase", tag = "type", content = "data")]
 pub enum ScreensaverEvent {
-    A,
+    ScreenSaverUpdated,
+    CurrentResolved,
+    ImageRenamed { old_name: String, new_name: String },
 }
 
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]

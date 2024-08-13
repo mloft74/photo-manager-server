@@ -21,7 +21,7 @@ impl ScreensaverEventSystem {
 impl ScreensaverEventSys for ScreensaverEventSystem {
     fn send(&self, event: ScreensaverEvent) {
         for cb in self.callbacks.values() {
-            cb(event);
+            cb(event.clone());
         }
     }
 

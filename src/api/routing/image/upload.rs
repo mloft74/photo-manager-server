@@ -24,6 +24,7 @@ use crate::{
     },
     domain::{
         actions::image::{FetchImage, SaveImage},
+        event_system::{ScreensaverEvent, ScreensaverEventSys},
         models::Image,
         screensaver::Screensaver,
     },
@@ -32,11 +33,12 @@ use crate::{
 pub fn make_upload_router(
     image_mngr: impl 'static + Clone + Send + Sync + FetchImage + SaveImage,
     screensaver: impl 'static + Clone + Send + Sync + Screensaver,
+    event_mngr: impl 'static + Clone + Send + Sync + ScreensaverEventSys,
 ) -> Router {
     Router::new()
         .route(
             "/upload",
-            post(|body| upload_image(body, image_mngr, screensaver)),
+            post(|body| upload_image(body, image_mngr, event_mngr, screensaver)),
         )
         .layer(DefaultBodyLimit::disable())
         .layer(RequestBodyLimitLayer::new(
@@ -61,6 +63,7 @@ impl ApiError for UploadImageError {}
 async fn upload_image(
     mut multipart: Multipart,
     image_mngr: impl FetchImage + SaveImage,
+    event_mngr: impl ScreensaverEventSys,
     mut screensaver: impl Screensaver,
 ) -> Result<(), (StatusCode, String)> {
     let (file_name, file_field) = validate_field(multipart.next_field().await).map_err(|e| {
@@ -123,6 +126,8 @@ async fn upload_image(
             UploadImageError::FailedToInsertImage.to_json_string(),
         )
     })?;
+
+    event_mngr.send(ScreensaverEvent::ScreenSaverUpdated);
 
     Ok(())
 }

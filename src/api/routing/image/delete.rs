@@ -4,14 +4,22 @@ use tokio::fs;
 
 use crate::{
     api::{routing::ApiError, IMAGES_DIR, SCALED_IMAGE_PREFIX},
-    domain::{actions::image::DeleteImage, screensaver::Screensaver},
+    domain::{
+        actions::image::DeleteImage,
+        event_system::{ScreensaverEvent, ScreensaverEventSys},
+        screensaver::Screensaver,
+    },
 };
 
 pub fn make_delete_router(
     di: impl 'static + Clone + Send + Sync + DeleteImage,
     screensaver: impl 'static + Clone + Send + Sync + Screensaver,
+    event_mngr: impl 'static + Clone + Send + Sync + ScreensaverEventSys,
 ) -> Router {
-    Router::new().route("/delete", post(|body| delete_image(body, di, screensaver)))
+    Router::new().route(
+        "/delete",
+        post(|body| delete_image(body, di, event_mngr, screensaver)),
+    )
 }
 
 #[derive(Deserialize)]
@@ -33,6 +41,7 @@ impl ApiError for DeleteImageError {}
 async fn delete_image(
     Json(input): Json<DeleteInput>,
     di: impl DeleteImage,
+    event_mngr: impl ScreensaverEventSys,
     mut screensaver: impl Screensaver,
 ) -> Result<(), (StatusCode, String)> {
     delete_fs(&input).await.map_err(|e| {
@@ -55,6 +64,8 @@ async fn delete_image(
             DeleteImageError::FailedToDeleteInQueue.to_json_string(),
         )
     })?;
+
+    event_mngr.send(ScreensaverEvent::ScreenSaverUpdated);
 
     Ok(())
 }

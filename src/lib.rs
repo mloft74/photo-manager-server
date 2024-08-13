@@ -21,7 +21,7 @@ pub async fn run() {
 
     let mut event_mngr = ScreensaverEventManager::new();
 
-    let api_router = api::make_api_router(&persistence_mngr).await;
+    let api_router = api::make_api_router(&persistence_mngr, &event_mngr).await;
 
     let rtc_handle = rtc::init_rtc(&mut event_mngr);
 
