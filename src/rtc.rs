@@ -2,16 +2,22 @@ use std::{
     any::Any,
     io::{self, BufRead, BufReader, Write},
     net::{Shutdown, SocketAddr, TcpListener, TcpStream},
-    sync::mpsc::{self, Receiver, SendError, Sender, TryRecvError},
     thread::{self, JoinHandle},
     time::Duration,
 };
 
+use crossbeam::channel::{self, Receiver, SendError, Sender, TryRecvError};
 use tracing::{debug, error, warn};
+
+use crate::{
+    domain::event_system::{ScreensaverEvent, ScreensaverEventSys, ScreensaverListenerId},
+    state::screensaver_event_manager::ScreensaverEventManager,
+};
 
 pub struct RtcHandle {
     send_app_stop: Sender<()>,
     app_rtc: JoinHandle<()>,
+    listener_id: ScreensaverListenerId,
 }
 
 #[derive(Debug)]
@@ -27,7 +33,9 @@ impl RtcCloseError {
 }
 
 impl RtcHandle {
-    pub fn close(self) -> Result<(), RtcCloseError> {
+    pub fn close(self, event_mngr: &mut ScreensaverEventManager) -> Result<(), RtcCloseError> {
+        event_mngr.unregister(self.listener_id);
+
         let send_app_stop = self.send_app_stop.send(()).err();
         let app_join = self.app_rtc.join().err();
 
@@ -44,17 +52,28 @@ impl RtcHandle {
     }
 }
 
-pub fn init_rtc() -> RtcHandle {
-    let (send_app_stop, recv_app_stop) = mpsc::channel();
-    let app_rtc = app_rtc_thread(recv_app_stop);
+pub fn init_rtc(event_mngr: &mut ScreensaverEventManager) -> RtcHandle {
+    let (send_app_stop, recv_app_stop) = channel::unbounded();
+    let (send_event, recv_event) = channel::unbounded();
+    let app_rtc = app_rtc_thread(recv_app_stop, recv_event);
+    let id = event_mngr.register(Box::new(move |e| {
+        let err = send_event.send(e);
+        if let Err(e) = err {
+            error!("[app_rtc_event_handler] could not send due to error {e}");
+        }
+    }));
 
     RtcHandle {
         send_app_stop,
         app_rtc,
+        listener_id: id,
     }
 }
 
-fn app_rtc_thread(recv_stop_rtc: Receiver<()>) -> JoinHandle<()> {
+fn app_rtc_thread(
+    recv_stop_rtc: Receiver<()>,
+    recv_event: Receiver<ScreensaverEvent>,
+) -> JoinHandle<()> {
     thread::spawn(move || {
         let listener =
             TcpListener::bind("0.0.0.0:4000").expect("[app_rtc] TcpListener should be valid");
@@ -69,11 +88,13 @@ fn app_rtc_thread(recv_stop_rtc: Receiver<()>) -> JoinHandle<()> {
             match should_stop {
                 Err(TryRecvError::Empty) => (),
                 Err(TryRecvError::Disconnected) => {
-                    warn!("[app_rtc] recv_stop_listen disconnected, stopping thread");
+                    let name = stringify!(recv_stop_rtc);
+                    warn!("[app_rtc] {name} disconnected, stopping thread");
                     break;
                 }
                 Ok(_) => {
-                    debug!("[app_rtc] recv_stop_listen received stop signal, stopping thread");
+                    let name = stringify!(recv_stop_rtc);
+                    debug!("[app_rtc] {name} received stop signal, stopping thread");
                     break;
                 }
             }
@@ -82,8 +103,8 @@ fn app_rtc_thread(recv_stop_rtc: Receiver<()>) -> JoinHandle<()> {
             match res {
                 Ok((stream, addr)) => {
                     debug!("[app_rtc] established connection with {addr}");
-                    let (send_stop, recv_stop) = mpsc::channel();
-                    let thread = app_stream_thread(recv_stop, stream, addr);
+                    let (send_stop, recv_stop) = channel::unbounded();
+                    let thread = app_stream_thread(recv_stop, recv_event.clone(), stream, addr);
                     stream_threads.push((send_stop, addr, thread));
                 }
                 Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => (),
@@ -140,6 +161,7 @@ fn app_rtc_thread(recv_stop_rtc: Receiver<()>) -> JoinHandle<()> {
 
 fn app_stream_thread(
     recv_stop: Receiver<()>,
+    recv_event: Receiver<ScreensaverEvent>,
     stream: TcpStream,
     addr: SocketAddr,
 ) -> JoinHandle<()> {
@@ -183,22 +205,36 @@ fn app_stream_thread(
 
             if !string.is_empty() {
                 debug!("[app_stream] [{addr}] got msg: {string}");
-                let msg = format!("[app_stream] [{addr}] sending prompted message to peer");
-                let res = reader.get_ref().write_all(msg.as_bytes());
-                if let Err(err) = res {
-                    error!("[app_stream] [{addr}] error sending message to peer: {err}");
-                    break;
-                }
-            } else {
-                debug!("[app_stream] [{addr}] got no msg, sending to peer anyway");
-                let msg = format!("[app_stream] [{addr}] sending unprompted message to peer");
-                let res = reader.get_ref().write_all(msg.as_bytes());
-                if let Err(err) = res {
-                    error!("[app_stream] [{addr}] error sending message to peer: {err}");
-                    break;
-                }
             }
 
+            let event = recv_event.try_recv();
+            match event {
+                Err(TryRecvError::Empty) => (),
+                Err(TryRecvError::Disconnected) => {
+                    warn!("[app_stream] [{addr}] recv_stop disconnected, stopping thread");
+                    break;
+                }
+                Ok(event) => {
+                    let json = serde_json::to_string(&event);
+                    match json {
+                        Err(err) => {
+                            error!(
+                                "[app_stream] [{addr}] error converting {event:?} to json: {err}"
+                            );
+                            break;
+                        }
+                        Ok(json) => {
+                            let res = reader.get_ref().write_all(json.as_bytes());
+                            if let Err(err) = res {
+                                error!(
+                                    "[app_stream] [{addr}] error sending message to peer: {err}"
+                                );
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
             thread::sleep(Duration::from_millis(100));
         }
 

@@ -1,4 +1,7 @@
-#[derive(Clone, Copy)]
+use serde::Serialize;
+
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "camelCase", tag = "type", content = "data")]
 pub enum ScreensaverEvent {
     A,
 }

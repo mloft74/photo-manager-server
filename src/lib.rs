@@ -23,7 +23,7 @@ pub async fn run() {
 
     let api_router = api::make_api_router(&persistence_mngr).await;
 
-    let rtc_handle = rtc::init_rtc();
+    let rtc_handle = rtc::init_rtc(&mut event_mngr);
 
     let listener = TcpListener::bind("0.0.0.0:3000")
         .await
@@ -31,7 +31,9 @@ pub async fn run() {
     axum::serve(listener, api_router)
         .await
         .expect("Server should run without errors");
-    rtc_handle.close().expect("Rtc should close without issue");
+    rtc_handle
+        .close(&mut event_mngr)
+        .expect("Rtc should close without issue");
 }
 
 trait LazyExpect {
