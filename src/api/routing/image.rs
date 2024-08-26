@@ -12,6 +12,7 @@ use crate::{
 mod current;
 mod delete;
 mod get;
+mod line_up;
 mod paginated;
 mod rename;
 mod resolve;
@@ -52,7 +53,8 @@ pub fn make_image_router(
                 persistence_mngr.clone(),
                 screensaver_mngr.clone(),
                 event_mngr.clone(),
-            )),
+            ))
+            .merge(line_up::make_line_up_router(screensaver_mngr.clone())),
     )
 }
 
