@@ -4,7 +4,7 @@ use rand::{seq::SliceRandom, thread_rng, Rng, RngCore};
 
 use crate::domain::{
     models::Image,
-    screensaver::{ResolveState, Screensaver},
+    screensaver::{LineUp, ResolveState, Screensaver},
 };
 
 // Invariants:
@@ -176,6 +176,13 @@ impl Screensaver for ScreensaverState {
             if let Some(curr_name) = curr_name {
                 ensure_different_next_image(&curr_name, &mut self.images, &mut rng);
             }
+        }
+    }
+
+    fn get_line_up(&self) -> LineUp {
+        LineUp {
+            images: self.images.clone(),
+            current_idx: self.current_index,
         }
     }
 }

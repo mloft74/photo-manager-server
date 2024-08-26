@@ -7,7 +7,7 @@ use std::{
 use crate::{
     domain::{
         models::Image,
-        screensaver::{ResolveState, Screensaver},
+        screensaver::{LineUp, ResolveState, Screensaver},
     },
     state::screensaver_state::ScreensaverState,
 };
@@ -68,5 +68,9 @@ impl Screensaver for ScreensaverManager {
 
     fn replace(&mut self, values: HashMap<String, Image>) {
         self.acquire_lock().replace(values)
+    }
+
+    fn get_line_up(&self) -> LineUp {
+        self.acquire_lock().get_line_up()
     }
 }

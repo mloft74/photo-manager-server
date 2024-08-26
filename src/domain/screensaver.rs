@@ -12,6 +12,11 @@ pub enum ResolveState {
     NoImages,
 }
 
+pub struct LineUp {
+    pub images: Vec<Image>,
+    pub current_idx: Option<usize>,
+}
+
 // Invariants:
 // - Implementors contain no duplicate images according to the image file name.
 // - Implementors never return the same image from `current` across calls to `resolve`.
@@ -53,4 +58,7 @@ pub trait Screensaver {
     /// Shuffles the given `Image`s and replaces the images in the internal structure.
     /// The key should be the file name of the image the key refers to.
     fn replace(&mut self, values: HashMap<String, Image>);
+
+    /// Returns the current line up.
+    fn get_line_up(&self) -> LineUp;
 }
