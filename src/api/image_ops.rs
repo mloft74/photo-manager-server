@@ -1,8 +1,7 @@
 use std::fs::File;
 
 use image::{
-    imageops::{self, FilterType},
-    DynamicImage, ImageFormat, ImageReader,
+    codecs::jpeg::JpegEncoder, imageops::{self, FilterType}, DynamicImage, ImageFormat, ImageReader
 };
 use serde::Serialize;
 
@@ -87,8 +86,9 @@ pub fn scale_image(image: &Image) -> Result<(), ScaleImageError> {
     // Stupid hack because the library pretends all images have alpha when resizing.
     if format == ImageFormat::Jpeg {
         let fixed = DynamicImage::ImageRgba8(resized).into_rgb8();
+        let encoder = JpegEncoder::new_with_quality(&mut file, 100);
         fixed
-            .write_to(&mut file, format)
+            .write_with_encoder(encoder)
             .map_err(|e| ScaleImageError {
                 details: e.to_string(),
                 error_type: ScaleImageErrorType::SaveImageError,
