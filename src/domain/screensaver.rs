@@ -54,3 +54,20 @@ pub trait Screensaver {
     /// The key should be the file name of the image the key refers to.
     fn replace(&mut self, values: HashMap<String, Image>);
 }
+
+#[derive(PartialEq, Eq, Debug)]
+pub enum ResolveTestState {
+    /// The image being resolved is not the current image of the manager.
+    NotCurrent,
+    /// The image was resolved.
+    Resolved,
+}
+
+pub trait TestScreensaver {
+    /// Returns the current image.
+    fn current(&self) -> Image;
+
+    /// Resolves an image of the given name.
+    /// If the name being resolved isn't the current image, nothing happens.
+    fn resolve(&mut self, file_name: &str) -> ResolveTestState;
+}

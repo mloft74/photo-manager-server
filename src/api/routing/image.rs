@@ -12,6 +12,7 @@ mod get;
 mod paginated;
 mod rename;
 mod resolve;
+mod test_4k;
 mod update_canon;
 mod upload;
 
@@ -41,7 +42,8 @@ pub fn make_image_router(
             .merge(delete::make_delete_router(
                 persistence_mngr.clone(),
                 screensaver_mngr.clone(),
-            )),
+            ))
+            .merge(test_4k::make_test_4k_router()),
     )
 }
 

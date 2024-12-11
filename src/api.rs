@@ -9,6 +9,7 @@ mod request_tracing;
 mod routing;
 
 const IMAGES_DIR: &str = "/var/lib/photo_manager_server/images";
+const TEST_IMAGES_DIR: &str = "/var/lib/photo_manager_server/test_images";
 
 pub async fn make_api_router(persistence_mngr: &PersistenceManager) -> Router {
     let mut screensaver_mngr = ScreensaverManager::new();
@@ -17,11 +18,13 @@ pub async fn make_api_router(persistence_mngr: &PersistenceManager) -> Router {
         .expect("Canon should be updatable from startup");
 
     let image_server_router = image_server::create_image_server_router();
+    let test_image_server_router = image_server::create_test_image_server_router();
 
-    let demo_router = routing::make_api_router(persistence_mngr, &screensaver_mngr);
+    let api_router = routing::make_api_router(persistence_mngr, &screensaver_mngr);
 
     Router::new()
         .merge(image_server_router)
-        .merge(demo_router)
+        .merge(test_image_server_router)
+        .merge(api_router)
         .layer(middleware::from_fn(request_tracing::print_request_response))
 }

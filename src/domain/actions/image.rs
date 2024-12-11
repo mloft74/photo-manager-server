@@ -30,6 +30,11 @@ pub trait FetchImage {
     async fn fetch_image(&self, file_name: &str) -> Result<Option<Image>, String>;
 }
 
+#[auto_impl(&)]
+pub trait FetchTestImage {
+    fn fetch_image(&self, file_name: &str) -> Option<Image>;
+}
+
 #[async_trait]
 #[auto_impl(&)]
 pub trait RenameImage {

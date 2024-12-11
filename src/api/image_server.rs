@@ -1,8 +1,12 @@
 use axum::Router;
 use tower_http::services::ServeDir;
 
-use crate::api::IMAGES_DIR;
+use crate::api::{IMAGES_DIR, TEST_IMAGES_DIR};
 
 pub fn create_image_server_router() -> Router {
     Router::new().nest_service("/image", ServeDir::new(IMAGES_DIR))
+}
+
+pub fn create_test_image_server_router() -> Router {
+    Router::new().nest_service("/test_image", ServeDir::new(TEST_IMAGES_DIR))
 }
