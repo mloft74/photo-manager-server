@@ -8,6 +8,7 @@ use crate::{
 
 mod current;
 mod delete;
+mod fetch_canon;
 mod get;
 mod paginated;
 mod rename;
@@ -22,23 +23,26 @@ pub fn make_image_router(
     Router::new().nest(
         "/image",
         Router::new()
-            .merge(upload::make_upload_router(
+            .merge(current::make_current_router(screensaver_mngr.clone()))
+            .merge(delete::make_delete_router(
                 persistence_mngr.clone(),
                 screensaver_mngr.clone(),
+            ))
+            .merge(fetch_canon::make_fetch_canon_router(
+                persistence_mngr.clone(),
             ))
             .merge(get::make_get_router(persistence_mngr.clone()))
-            .merge(update_canon::make_update_canon_router(
-                persistence_mngr.clone(),
-                screensaver_mngr.clone(),
-            ))
             .merge(paginated::make_paginated_router(persistence_mngr.clone()))
             .merge(rename::make_rename_router(
                 persistence_mngr.clone(),
                 screensaver_mngr.clone(),
             ))
-            .merge(current::make_current_router(screensaver_mngr.clone()))
             .merge(resolve::make_resolve_router(screensaver_mngr.clone()))
-            .merge(delete::make_delete_router(
+            .merge(update_canon::make_update_canon_router(
+                persistence_mngr.clone(),
+                screensaver_mngr.clone(),
+            ))
+            .merge(upload::make_upload_router(
                 persistence_mngr.clone(),
                 screensaver_mngr.clone(),
             )),

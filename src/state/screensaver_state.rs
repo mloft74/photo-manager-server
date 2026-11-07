@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use rand::{rngs::ThreadRng, seq::SliceRandom};
+use rand::{RngExt, rngs::ThreadRng, seq::SliceRandom};
 
 use crate::domain::{
     models::Image,
@@ -42,7 +42,7 @@ impl ScreensaverState {
                 let x = idx + 1;
                 // Generate on non-empty range.
                 if x < last_idx {
-                    let new_idx = rng.gen_range(x..len);
+                    let new_idx = rng.random_range(x..len);
                     self.images.swap(last_idx, new_idx);
                 }
             }
@@ -191,7 +191,7 @@ fn ensure_different_next_image(curr_name: &str, images: &mut [Image], rng: &mut 
     let first_swap_idx = 1;
     if curr_name == new_name && len > first_swap_idx {
         tracing::debug!("swapping");
-        let new_idx = rng.gen_range(first_swap_idx..len);
+        let new_idx = rng.random_range(first_swap_idx..len);
         images.swap(0, new_idx);
     }
 }
@@ -624,7 +624,7 @@ mod tests {
     fn deleting_current_image_at_end_shuffles() {
         fn insert_into(set: &mut HashSet<String>, name: String) {
             if set.contains(&name) {
-                panic!("set already contains {}", &name);
+                panic!("set already contains {}", name);
             }
             set.insert(name);
         }

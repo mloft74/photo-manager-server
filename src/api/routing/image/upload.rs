@@ -1,15 +1,15 @@
 use std::io;
 
 use axum::{
+    BoxError, Router,
     extract::{
-        multipart::{Field, MultipartError},
         DefaultBodyLimit, Multipart,
+        multipart::{Field, MultipartError},
     },
     routing::post,
-    BoxError, Router,
 };
 use futures::{Stream, TryStreamExt};
-use hyper::{body::Bytes, StatusCode};
+use hyper::{StatusCode, body::Bytes};
 use serde::Serialize;
 use tokio::{fs::File, io::BufWriter};
 use tokio_util::io::StreamReader;
@@ -17,9 +17,9 @@ use tower_http::limit::RequestBodyLimitLayer;
 
 use crate::{
     api::{
+        IMAGES_DIR,
         image_dimensions::{self, FetchImageDimensionsError},
         routing::ApiError,
-        IMAGES_DIR,
     },
     domain::{
         actions::image::{FetchImage, SaveImage},
@@ -129,7 +129,7 @@ where
 {
     async {
         // Convert the stream into an `AsyncRead`.
-        let body_with_io_error = stream.map_err(|err| io::Error::new(io::ErrorKind::Other, err));
+        let body_with_io_error = stream.map_err(|err| io::Error::other(err));
         let body_reader = StreamReader::new(body_with_io_error);
         futures::pin_mut!(body_reader);
 
@@ -157,10 +157,10 @@ fn path_is_valid(path: &str) -> bool {
     let path = std::path::Path::new(path);
     let mut components = path.components().peekable();
 
-    if let Some(first) = components.peek() {
-        if !matches!(first, std::path::Component::Normal(_)) {
-            return false;
-        }
+    if let Some(first) = components.peek()
+        && !matches!(first, std::path::Component::Normal(_))
+    {
+        return false;
     }
 
     components.count() == 1
