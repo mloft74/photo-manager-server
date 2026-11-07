@@ -15,7 +15,8 @@ pub async fn run() {
 
     let api_router = api::make_api_router(&persistence_mngr).await;
 
-    axum::Server::bind(&"0.0.0.0:3000".parse().expect("Server URL should be valid"))
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.expect("TcpListener should bind correctly");
+    axum::serve(listener, api_router)
         .serve(api_router.into_make_service())
         .await
         .expect("Server should run without errors");
