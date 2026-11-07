@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use rand::{seq::SliceRandom, thread_rng, Rng, RngCore};
+use rand::{rngs::ThreadRng, seq::SliceRandom};
 
 use crate::domain::{
     models::Image,
@@ -29,7 +29,7 @@ impl ScreensaverState {
     }
 
     /// This inserts a single image. This could be called multiple times to insert multiple images.
-    fn insert_impl(&mut self, rng: &mut impl RngCore, value: Image) {
+    fn insert_impl(&mut self, rng: &mut ThreadRng, value: Image) {
         self.images.push(value);
         match self.current_index {
             None => {
@@ -51,7 +51,7 @@ impl ScreensaverState {
 
     /// Resets `current_index` to 0 and shuffles `images`.
     /// This can only be called if `images` is not empty.
-    fn shuffle(&mut self, rng: &mut impl RngCore) {
+    fn shuffle(&mut self, rng: &mut ThreadRng) {
         self.current_index = Some(0);
         self.images.shuffle(rng);
     }
@@ -75,7 +75,7 @@ impl Screensaver for ScreensaverState {
                     if new_idx < len {
                         self.current_index = Some(new_idx);
                     } else {
-                        let mut rng = thread_rng();
+                        let mut rng = rand::rng();
                         self.shuffle(&mut rng);
                         ensure_different_next_image(&curr_name, &mut self.images, &mut rng);
                     }
@@ -90,7 +90,7 @@ impl Screensaver for ScreensaverState {
         if self.images.iter().any(|x| x.file_name == value.file_name) {
             Err(())
         } else {
-            let mut rng = thread_rng();
+            let mut rng = rand::rng();
             self.insert_impl(&mut rng, value);
             Ok(())
         }
@@ -105,7 +105,7 @@ impl Screensaver for ScreensaverState {
             acc
         });
         if conflicts.is_empty() {
-            let mut rng = thread_rng();
+            let mut rng = rand::rng();
             for value in values.into_values() {
                 self.insert_impl(&mut rng, value);
             }
@@ -147,7 +147,7 @@ impl Screensaver for ScreensaverState {
                 if len == 0 {
                     self.current_index = None;
                 } else if curr_idx >= len {
-                    let mut rng = thread_rng();
+                    let mut rng = rand::rng();
                     self.shuffle(&mut rng);
                     ensure_different_next_image(&curr_name, &mut self.images, &mut rng);
                 }
@@ -171,7 +171,7 @@ impl Screensaver for ScreensaverState {
             let curr_name = self.current().map(|e| e.file_name);
             self.images = values;
 
-            let mut rng = thread_rng();
+            let mut rng = rand::rng();
             self.shuffle(&mut rng);
             if let Some(curr_name) = curr_name {
                 ensure_different_next_image(&curr_name, &mut self.images, &mut rng);
@@ -185,7 +185,7 @@ impl Screensaver for ScreensaverState {
 // else in the list, we guarantee that you can't have the same image twice in
 // a row, preventing a double resolve bug from a single image.
 // Also, generate on non-empty range.
-fn ensure_different_next_image(curr_name: &str, images: &mut [Image], rng: &mut impl RngCore) {
+fn ensure_different_next_image(curr_name: &str, images: &mut [Image], rng: &mut ThreadRng) {
     let new_name = &images[0].file_name;
     let len = images.len();
     let first_swap_idx = 1;
