@@ -1,35 +1,35 @@
 use axum::{
+    body::Body,
     middleware::Next,
     response::{IntoResponse, Response},
 };
-use http_body_util::BodyExt;
+use http_body_util::{BodyExt};
 use hyper::{
     Request, StatusCode, Uri,
-    body::{Body, Bytes},
+    body::{Bytes},
 };
 
 pub async fn print_request_response(
-    req: Request<impl Body>,
+    req: Request<Body>,
     next: Next,
-) -> Result<impl IntoResponse, (StatusCode, String)> {
+) -> Result<impl IntoResponse, (StatusCode, String)>
+{
     let (parts, body) = req.into_parts();
-    let uri = &parts.uri;
-    let bytes = buffer_and_print_request(uri, body).await?;
+    let uri = parts.uri.clone();
+    let bytes = buffer_and_print_request(&uri, body).await?;
     let req = Request::from_parts(parts, Body::from(bytes));
 
     let res = next.run(req).await;
 
     let (parts, body) = res.into_parts();
-    let bytes = buffer_and_print_response(&parts.status, uri, body).await?;
+    let bytes = buffer_and_print_response(&parts.status, &uri, body).await?;
     let res = Response::from_parts(parts, Body::from(bytes));
 
     Ok(res)
 }
 
-async fn buffer_and_print_request(
-    uri: &Uri,
-    body: impl Body,
-) -> Result<Bytes, (StatusCode, String)> {
+async fn buffer_and_print_request(uri: &Uri, body: Body) -> Result<Bytes, (StatusCode, String)>
+{
     let bytes = match body.collect().await {
         Ok(collected) => collected.to_bytes(),
         Err(err) => {
@@ -50,8 +50,9 @@ async fn buffer_and_print_request(
 async fn buffer_and_print_response(
     status_code: &StatusCode,
     uri: &Uri,
-    body: impl Body,
-) -> Result<Bytes, (StatusCode, String)> {
+    body: Body,
+) -> Result<Bytes, (StatusCode, String)>
+{
     let bytes = match body.collect().await {
         Ok(collected) => collected.to_bytes(),
         Err(err) => {

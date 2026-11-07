@@ -19,7 +19,6 @@ pub async fn run() {
         .await
         .expect("TcpListener should bind correctly");
     axum::serve(listener, api_router)
-        .serve(api_router.into_make_service())
         .await
         .expect("Server should run without errors");
 }
