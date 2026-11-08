@@ -8,6 +8,8 @@ services:
       - /var/lib/photo_manager_server:/var/lib/photo_manager_server
     depends_on:
       - db
+    networks:
+      - photo_manager_net
   db:
     image: postgres:18.6-alpine3.24
     restart: always
@@ -17,8 +19,10 @@ services:
     ports:
       - '5432:5432'
     volumes:
-      - db:/var/lib/postgresql/data
+      - db:/var/lib/postgresql
       - ./sql/create_database.sql:/docker-entrypoint-initdb.d/create_database.sql
+    networks:
+      - photo_manager_net
   pgadmin:
     image: dpage/pgadmin4:9.19
     restart: always
@@ -31,8 +35,15 @@ services:
       - pgadmin:/var/lib/pgadmin
     depends_on:
       - db
+    networks:
+      - photo_manager_net
 volumes:
   db:
     driver: local
   pgadmin:
     driver: local
+networks:
+  photo_manager_net:
+    driver: bridge
+    driver_opts:
+      "com.docker.network.bridge.name": "photomanagernet"

@@ -16,9 +16,10 @@ pub async fn init_persistence() -> PersistenceManager {
 
 async fn connect() -> DbConn {
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let db_conn = Database::connect(db_url)
+
+    let db_conn = Database::connect(&db_url)
         .await
-        .expect("Database should be connectable from startup");
+        .unwrap_or_else(|_| panic!("Database {} should be connectable from startup", db_url));
 
     Migrator::up(&db_conn, None)
         .await
